@@ -121,6 +121,35 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
 @media(max-width:580px){.resumen-grid{grid-template-columns:1fr}}
 .section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
 .section-header h3{font-size:13px;font-weight:500;color:var(--text)}
+
+.btn-export{padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text2);font-family:var(--font-body);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s}
+.btn-export:hover{border-color:var(--green);color:var(--green)}
+@media print{
+  nav,.month-nav,.btn-export,.btn-danger,.btn-primary,#toast{display:none!important}
+  body{background:#fff!important;color:#111!important}
+  .section{display:block!important}
+  #sec-pdf{display:block!important}
+  main{padding:0!important}
+  .pdf-page{page-break-after:always}
+  .pdf-header{text-align:center;padding:20px 0 10px;border-bottom:2px solid #111;margin-bottom:20px}
+  .pdf-title{font-size:22px;font-weight:700;color:#111}
+  .pdf-sub{font-size:13px;color:#555;margin-top:4px}
+  .pdf-section{margin-bottom:24px}
+  .pdf-section-title{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#111;border-bottom:1px solid #ddd;padding-bottom:6px;margin-bottom:12px}
+  .pdf-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+  .pdf-kpi{border:1px solid #ddd;border-radius:6px;padding:10px 14px;text-align:center}
+  .pdf-kpi-label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+  .pdf-kpi-value{font-size:18px;font-weight:700}
+  .pdf-kpi-value.green{color:#1a9e6a}.pdf-kpi-value.red{color:#c0392b}.pdf-kpi-value.blue{color:#2471a3}.pdf-kpi-value.amber{color:#b7770d}
+  .pdf-table{width:100%;border-collapse:collapse;font-size:12px}
+  .pdf-table th{background:#f5f5f5;font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:6px 8px;text-align:left;border:1px solid #ddd}
+  .pdf-table td{padding:6px 8px;border:1px solid #eee}
+  .pdf-table tr:nth-child(even) td{background:#fafafa}
+  .pdf-table .right{text-align:right;font-weight:500}
+  .pdf-cat-bar{height:6px;background:#eee;border-radius:3px;overflow:hidden;margin-top:3px}
+  .pdf-cat-fill{height:100%;border-radius:3px}
+  .pdf-footer{text-align:center;font-size:10px;color:#aaa;margin-top:20px;padding-top:10px;border-top:1px solid #eee}
+}
 </style>
 </head>
 <body>
@@ -129,6 +158,7 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
   <div class="nav-brand">mis<span>.</span>finanzas</div>
   <div class="nav-right">
     <span class="sync-status sync-load" id="sync-status">⏳ Conectando...</span>
+    <button class="btn-export" onclick="exportarPDF()" title="Exportar PDF">⬇ PDF</button>
     <div class="nav-tabs">
       <button class="nav-tab active" onclick="showSection('dashboard',this)">Dashboard</button>
       <button class="nav-tab" onclick="showSection('ingresos',this)">Ingresos</button>
@@ -635,6 +665,144 @@ window.addEventListener('dbReady', async ()=>{
   dbReady=true;
   await loadAll();
 });
+
+
+function exportarPDF(){
+  const ing = cache.ing;
+  const eg = cache.eg;
+  const gd = [...cache.gd].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
+
+  const totalIng = ing.reduce((s,x)=>s+x.monto,0);
+  const totalEg  = eg.reduce((s,x)=>s+x.monto,0);
+  const totalGd  = gd.reduce((s,x)=>s+x.monto,0);
+  const balance  = totalIng - totalEg - totalGd;
+
+  const hoy = new Date();
+  const esActual = (hoy.getFullYear()===currentYear && hoy.getMonth()===currentMonth);
+  const diasDelMes = new Date(currentYear, currentMonth+1, 0).getDate();
+  const diaHoy = esActual ? hoy.getDate() : diasDelMes;
+  const diasTrans = Math.max(diaHoy,1);
+  const diasRest = esActual ? diasDelMes - diaHoy + 1 : 1;
+  const promDiario = totalGd / diasTrans;
+  const dispDia = diasRest > 0 ? balance / diasRest : 0;
+
+  // Por categoría
+  const catTotals = {};
+  gd.forEach(x=>{const k=CAT_GD[x.cat]||x.cat;catTotals[k]=(catTotals[k]||0)+x.monto;});
+  const catSorted = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
+  const maxCat = catSorted.length ? catSorted[0][1] : 1;
+  const catColors2 = ['#2dcc8f','#5b8dee','#f0a500','#e8504a','#a78bfa','#f5c542','#8b8994'];
+
+  // Por día top 5
+  const diaTotals = {};
+  gd.forEach(x=>{ if(!x.fecha)return; const d=parseInt(x.fecha.split('-')[2]); diaTotals[d]=(diaTotals[d]||0)+x.monto; });
+  const topDias = Object.entries(diaTotals).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  const mesNombre = MESES[currentMonth] + ' ' + currentYear;
+  const fechaGen = hoy.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html lang="es"><head>
+  <meta charset="UTF-8">
+  <title>Resumen ${mesNombre}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Helvetica Neue',Arial,sans-serif;font-size:13px;color:#111;background:#fff;padding:24px}
+    .pdf-header{text-align:center;padding-bottom:14px;border-bottom:2px solid #111;margin-bottom:20px}
+    .pdf-title{font-size:24px;font-weight:700}
+    .pdf-sub{font-size:12px;color:#666;margin-top:4px}
+    .pdf-section{margin-bottom:24px}
+    .pdf-section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#333;border-bottom:1px solid #ddd;padding-bottom:5px;margin-bottom:12px}
+    .pdf-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:4px}
+    .pdf-kpi{border:1px solid #ddd;border-radius:6px;padding:10px 12px;text-align:center}
+    .pdf-kpi-label{font-size:9px;color:#999;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+    .pdf-kpi-value{font-size:17px;font-weight:700}
+    .green{color:#1a9e6a}.red{color:#c0392b}.blue{color:#2471a3}.amber{color:#b7770d}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th{background:#f5f5f5;font-size:9px;text-transform:uppercase;letter-spacing:.06em;padding:6px 8px;text-align:left;border:1px solid #ddd}
+    td{padding:6px 8px;border:1px solid #eee}
+    tr:nth-child(even) td{background:#fafafa}
+    .right{text-align:right;font-weight:600}
+    .bar-wrap{height:5px;background:#eee;border-radius:3px;overflow:hidden;margin-top:3px}
+    .bar-fill{height:100%;border-radius:3px}
+    .total-row td{font-weight:700;background:#f0f0f0!important;border-top:2px solid #ccc}
+    .page-break{page-break-before:always;padding-top:20px}
+    .pdf-footer{text-align:center;font-size:9px;color:#bbb;margin-top:30px;padding-top:10px;border-top:1px solid #eee}
+    @media print{body{padding:16px}.pdf-btn{display:none}}
+  </style>
+  </head><body>
+
+  <div class="pdf-header">
+    <div class="pdf-title">mis.finanzas</div>
+    <div class="pdf-sub">Resumen de ${mesNombre} &nbsp;·&nbsp; Generado el ${fechaGen}</div>
+  </div>
+
+  <!-- RESUMEN GENERAL -->
+  <div class="pdf-section">
+    <div class="pdf-section-title">Resumen general</div>
+    <div class="pdf-kpis">
+      <div class="pdf-kpi"><div class="pdf-kpi-label">Total ingresos</div><div class="pdf-kpi-value green">${fmt(totalIng)}</div></div>
+      <div class="pdf-kpi"><div class="pdf-kpi-label">Egresos fijos</div><div class="pdf-kpi-value red">${fmt(totalEg)}</div></div>
+      <div class="pdf-kpi"><div class="pdf-kpi-label">Gastos diarios</div><div class="pdf-kpi-value amber">${fmt(totalGd)}</div></div>
+      <div class="pdf-kpi"><div class="pdf-kpi-label">Balance</div><div class="pdf-kpi-value ${balance>=0?'green':'red'}">${fmt(balance)}</div></div>
+      <div class="pdf-kpi"><div class="pdf-kpi-label">Promedio diario</div><div class="pdf-kpi-value blue">${fmt(promDiario)}</div></div>
+      <div class="pdf-kpi"><div class="pdf-kpi-label">Disponible/día</div><div class="pdf-kpi-value ${dispDia>=0?'green':'red'}">${fmt(dispDia)}</div></div>
+    </div>
+  </div>
+
+  <!-- INGRESOS -->
+  <div class="pdf-section">
+    <div class="pdf-section-title">Ingresos</div>
+    <table><thead><tr><th>Categoría</th><th>Descripción</th><th style="text-align:right">Monto</th></tr></thead><tbody>
+    ${ing.map(x=>`<tr><td>${CAT_ING[x.cat]||x.cat}</td><td>${x.desc}</td><td class="right green">${fmt(x.monto)}</td></tr>`).join('')}
+    <tr class="total-row"><td colspan="2">TOTAL</td><td class="right green">${fmt(totalIng)}</td></tr>
+    </tbody></table>
+  </div>
+
+  <!-- EGRESOS FIJOS -->
+  <div class="pdf-section">
+    <div class="pdf-section-title">Egresos fijos</div>
+    <table><thead><tr><th>Categoría</th><th>Descripción</th><th style="text-align:right">Monto</th></tr></thead><tbody>
+    ${eg.map(x=>`<tr><td>${CAT_EG[x.cat]||x.cat}</td><td>${x.desc}</td><td class="right red">${fmt(x.monto)}</td></tr>`).join('')}
+    <tr class="total-row"><td colspan="2">TOTAL</td><td class="right red">${fmt(totalEg)}</td></tr>
+    </tbody></table>
+  </div>
+
+  <!-- GASTOS DIARIOS -->
+  <div class="pdf-section page-break">
+    <div class="pdf-section-title">Gastos diarios</div>
+    <table><thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th style="text-align:right">Monto</th></tr></thead><tbody>
+    ${gd.map(x=>{const d=(x.fecha||'').split('-');const f=d.length===3?d[2]+'/'+d[1]+'/'+d[0]:'';return `<tr><td>${f}</td><td>${CAT_GD[x.cat]||x.cat}</td><td>${x.desc}</td><td class="right red">${fmt(x.monto)}</td></tr>`;}).join('')}
+    <tr class="total-row"><td colspan="3">TOTAL</td><td class="right red">${fmt(totalGd)}</td></tr>
+    </tbody></table>
+  </div>
+
+  <!-- REPORTES -->
+  <div class="pdf-section page-break">
+    <div class="pdf-section-title">Reporte por categoría</div>
+    <table><thead><tr><th>Categoría</th><th style="text-align:right">Total</th><th style="text-align:right">%</th></tr></thead><tbody>
+    ${catSorted.map((x,i)=>{
+      const pct=Math.round(x[1]/totalGd*100);
+      const barW=Math.round(x[1]/maxCat*100);
+      const color=catColors2[i%catColors2.length];
+      return `<tr><td><div>${x[0]}</div><div class="bar-wrap"><div class="bar-fill" style="width:${barW}%;background:${color}"></div></div></td><td class="right">${fmt(x[1])}</td><td class="right">${pct}%</td></tr>`;
+    }).join('')}
+    </tbody></table>
+  </div>
+
+  <div class="pdf-section">
+    <div class="pdf-section-title">Top 5 días con más gastos</div>
+    <table><thead><tr><th>Día</th><th style="text-align:right">Total gastado</th></tr></thead><tbody>
+    ${topDias.map(([dia,total])=>`<tr><td>${dia} de ${mesNombre}</td><td class="right">${fmt(total)}</td></tr>`).join('')}
+    </tbody></table>
+  </div>
+
+  <div class="pdf-footer">mis.finanzas &nbsp;·&nbsp; ${mesNombre} &nbsp;·&nbsp; ${fechaGen}</div>
+
+  <script>window.print();<\/script>
+  </body></html>`);
+  win.document.close();
+}
 
 // Firestore rules reminder timeout
 setTimeout(()=>{
