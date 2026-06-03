@@ -134,6 +134,7 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
       <button class="nav-tab" onclick="showSection('ingresos',this)">Ingresos</button>
       <button class="nav-tab" onclick="showSection('egresos',this)">Egresos fijos</button>
       <button class="nav-tab" onclick="showSection('diarios',this)">Gastos diarios</button>
+      <button class="nav-tab" onclick="showSection('reportes',this)">Reportes</button>
     </div>
   </div>
 </nav>
@@ -236,6 +237,38 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
     <div class="section-header"><h3>Gastos del mes</h3><span id="gd-total" style="font-family:var(--font-mono);font-size:14px;color:var(--red)"></span></div>
     <div id="gd-list" class="daily-list"></div>
     <div id="gd-empty" class="empty"><div class="empty-icon">🛒</div>Sin gastos diarios registrados este mes</div>
+  </div>
+</div>
+
+<!-- REPORTES -->
+<div id="sec-reportes" class="section">
+  <!-- KPIs de reportes -->
+  <div class="kpis" id="rep-kpis"></div>
+
+  <div class="charts-grid">
+    <!-- Por categoría -->
+    <div class="chart-card">
+      <div class="chart-title">Gasto por categoría</div>
+      <div style="position:relative;height:220px"><canvas id="ch-rep-cat"></canvas></div>
+    </div>
+    <!-- Por día -->
+    <div class="chart-card">
+      <div class="chart-title">Gasto por día del mes</div>
+      <div style="position:relative;height:220px"><canvas id="ch-rep-dia"></canvas></div>
+    </div>
+  </div>
+
+  <div class="resumen-grid">
+    <!-- Ranking categorías -->
+    <div class="form-card">
+      <div class="section-header"><h3>Ranking por categoría</h3></div>
+      <div id="rep-cat-list"></div>
+    </div>
+    <!-- Top días -->
+    <div class="form-card">
+      <div class="section-header"><h3>Top 5 días más gastadores</h3></div>
+      <div id="rep-dia-list"></div>
+    </div>
   </div>
 </div>
 </main>
@@ -382,6 +415,7 @@ function renderAll(){
   renderEgresos();
   renderGastosDiarios();
   renderDashboard();
+  renderReportes();
 }
 
 function renderIngresos(){
@@ -470,6 +504,115 @@ function renderDashboard(){
 
   const fixEl=document.getElementById('dash-fixed-list');
   fixEl.innerHTML=eg.length?eg.map(x=>`<div class="daily-item"><span class="daily-cat cat-otr" style="font-size:9px">${CAT_EG[x.cat]||x.cat}</span><span class="daily-desc" style="font-size:12px">${x.desc}</span><span class="daily-amount" style="font-size:12px;color:var(--red)">${fmt(x.monto)}</span></div>`).join(''):'<div class="empty" style="padding:16px">Sin egresos fijos</div>';
+}
+
+
+function renderReportes(){
+  const gd = cache.gd;
+  const ing = cache.ing;
+  const eg = cache.eg;
+
+  const totalIng = ing.reduce((s,x)=>s+x.monto,0);
+  const totalEg  = eg.reduce((s,x)=>s+x.monto,0);
+  const totalGd  = gd.reduce((s,x)=>s+x.monto,0);
+  const balance  = totalIng - totalEg - totalGd;
+
+  // Dias del mes y dias transcurridos
+  const hoy = new Date();
+  const esElMesActual = (hoy.getFullYear()===currentYear && hoy.getMonth()===currentMonth);
+  const diasDelMes = new Date(currentYear, currentMonth+1, 0).getDate();
+  const diaHoy = esElMesActual ? hoy.getDate() : diasDelMes;
+  const diasRestantes = esElMesActual ? diasDelMes - diaHoy + 1 : 1;
+  const diasTranscurridos = Math.max(diaHoy, 1);
+
+  // Promedio diario
+  const promDiario = totalGd / diasTranscurridos;
+  // Disponible por dia
+  const dispPorDia = diasRestantes > 0 ? balance / diasRestantes : 0;
+
+  // KPIs
+  document.getElementById('rep-kpis').innerHTML = `
+    <div class="kpi"><div class="kpi-label">Total gastado</div><div class="kpi-value red">${fmt(totalGd)}</div></div>
+    <div class="kpi"><div class="kpi-label">Promedio por día</div><div class="kpi-value amber">${fmt(promDiario)}</div><div class="kpi-sub">${diasTranscurridos} días transcurridos</div></div>
+    <div class="kpi"><div class="kpi-label">Disponible por día</div><div class="kpi-value ${dispPorDia>=0?'green':'red'}">${fmt(dispPorDia)}</div><div class="kpi-sub">${diasRestantes} días restantes</div></div>
+    <div class="kpi"><div class="kpi-label">Balance actual</div><div class="kpi-value ${balance>=0?'green':'red'}">${fmt(balance)}</div></div>
+    <div class="kpi"><div class="kpi-label">Día más caro</div><div class="kpi-value blue" id="rep-dia-max">—</div></div>
+    <div class="kpi"><div class="kpi-label">Categoría top</div><div class="kpi-value blue" id="rep-cat-top">—</div></div>
+  `;
+
+  // Por categoría
+  const catTotals = {};
+  gd.forEach(x=>{ const k=CAT_GD[x.cat]||x.cat; catTotals[k]=(catTotals[k]||0)+x.monto; });
+  const catSorted = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
+  if(catSorted.length) document.getElementById('rep-cat-top').textContent = catSorted[0][0];
+
+  const catColors = ['#2dcc8f','#5b8dee','#f0a500','#e8504a','#a78bfa','#f5c542','#8b8994'];
+  if(charts['ch-rep-cat']) charts['ch-rep-cat'].destroy();
+  if(catSorted.length){
+    charts['ch-rep-cat'] = new Chart(document.getElementById('ch-rep-cat'),{
+      type:'doughnut',
+      data:{labels:catSorted.map(x=>x[0]),datasets:[{data:catSorted.map(x=>x[1]),backgroundColor:catColors,borderWidth:0,hoverOffset:4}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#8b8994',font:{size:11},boxWidth:10,padding:8}}}}
+    });
+  }
+
+  // Ranking categorías con barra
+  const maxCat = catSorted.length ? catSorted[0][1] : 1;
+  const catListEl = document.getElementById('rep-cat-list');
+  if(!catSorted.length){ catListEl.innerHTML='<div class="empty" style="padding:16px">Sin datos</div>'; }
+  else {
+    catListEl.innerHTML = catSorted.map((x,i)=>{
+      const pct = Math.round(x[1]/totalGd*100);
+      const barW = Math.round(x[1]/maxCat*100);
+      const color = catColors[i%catColors.length];
+      return `<div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-size:13px;color:var(--text)">${x[0]}</span>
+          <span style="font-family:var(--font-mono);font-size:12px;color:var(--text2)">${fmt(x[1])} <span style="color:var(--text3)">(${pct}%)</span></span>
+        </div>
+        <div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${barW}%;background:${color};border-radius:3px"></div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Por día
+  const diaTotals = {};
+  gd.forEach(x=>{
+    if(!x.fecha) return;
+    const dia = parseInt(x.fecha.split('-')[2]);
+    diaTotals[dia] = (diaTotals[dia]||0) + x.monto;
+  });
+  const diasKeys = Array.from({length:diasDelMes},(_,i)=>i+1);
+  const diasVals = diasKeys.map(d=>diaTotals[d]||0);
+
+  // Dia más caro
+  const maxDiaVal = Math.max(...Object.values(diaTotals),0);
+  const maxDia = Object.entries(diaTotals).find(x=>x[1]===maxDiaVal);
+  if(maxDia) document.getElementById('rep-dia-max').textContent = maxDia[0]+' '+MESES[currentMonth].slice(0,3);
+
+  if(charts['ch-rep-dia']) charts['ch-rep-dia'].destroy();
+  if(diasKeys.length){
+    charts['ch-rep-dia'] = new Chart(document.getElementById('ch-rep-dia'),{
+      type:'bar',
+      data:{labels:diasKeys.map(d=>String(d)),datasets:[{data:diasVals,backgroundColor:diasVals.map(v=>v===maxDiaVal && v>0?'#e8504a':'rgba(91,141,238,0.6)'),borderColor:diasVals.map(v=>v===maxDiaVal && v>0?'#e8504a':'#5b8dee'),borderWidth:1,borderRadius:3}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8b8994',font:{size:10}},grid:{color:'rgba(42,42,53,.5)'}},y:{ticks:{color:'#8b8994',font:{size:10},callback:v=>'$'+Math.round(v/1000)+'K'},grid:{color:'rgba(42,42,53,.5)'}}}}
+    });
+  }
+
+  // Top 5 días
+  const topDias = Object.entries(diaTotals).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const diaListEl = document.getElementById('rep-dia-list');
+  if(!topDias.length){ diaListEl.innerHTML='<div class="empty" style="padding:16px">Sin datos</div>'; }
+  else {
+    diaListEl.innerHTML = topDias.map(([dia,total],i)=>`
+      <div class="daily-item">
+        <span style="font-size:12px;color:var(--text3);font-family:var(--font-mono);width:24px">${i+1}.</span>
+        <span class="daily-desc">${dia} de ${MESES[currentMonth]}</span>
+        <span class="daily-amount">${fmt(total)}</span>
+      </div>`).join('');
+  }
 }
 
 function drawDoughnut(id,labels,data,colors){
