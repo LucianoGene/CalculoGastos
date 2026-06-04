@@ -300,6 +300,14 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
       <div id="rep-dia-list"></div>
     </div>
   </div>
+
+  <!-- Desglose por descripción -->
+  <div class="form-card" style="margin-top:16px">
+    <div class="section-header">
+      <h3>Desglose por descripción dentro de cada categoría</h3>
+    </div>
+    <div id="rep-desc-list"></div>
+  </div>
 </div>
 </main>
 
@@ -643,6 +651,63 @@ function renderReportes(){
         <span class="daily-amount">${fmt(total)}</span>
       </div>`).join('');
   }
+
+  // Desglose por descripción dentro de cada categoría
+  const descPorCat = {};
+  gd.forEach(x=>{
+    const cat = CAT_GD[x.cat]||x.cat;
+    if(!descPorCat[cat]) descPorCat[cat] = {};
+    const desc = x.desc || 'Sin descripción';
+    descPorCat[cat][desc] = (descPorCat[cat][desc]||0) + x.monto;
+  });
+
+  const descEl = document.getElementById('rep-desc-list');
+  const catOrder = catSorted.map(x=>x[0]);
+  const descColors2 = ['#2dcc8f','#5b8dee','#f0a500','#e8504a','#a78bfa','#f5c542','#8b8994'];
+
+  if(!catOrder.length){
+    descEl.innerHTML='<div class="empty" style="padding:16px">Sin datos</div>';
+  } else {
+    descEl.innerHTML = catOrder.map((cat,ci)=>{
+      const descs = Object.entries(descPorCat[cat]||{}).sort((a,b)=>b[1]-a[1]);
+      const totalCat = descs.reduce((s,x)=>s+x[1],0);
+      const maxDesc = descs.length ? descs[0][1] : 1;
+      const color = descColors2[ci%descColors2.length];
+      const rows = descs.map(([desc,total])=>{
+        const pct = Math.round(total/totalCat*100);
+        const barW = Math.round(total/maxDesc*100);
+        return `<tr>
+          <td style="padding:7px 10px;font-size:13px;color:var(--text)">${desc}</td>
+          <td style="padding:7px 10px;width:40%">
+            <div style="height:5px;background:var(--bg3);border-radius:3px;overflow:hidden">
+              <div style="height:100%;width:${barW}%;background:${color};border-radius:3px"></div>
+            </div>
+          </td>
+          <td style="padding:7px 10px;font-family:var(--font-mono);font-size:12px;text-align:right;color:var(--text2)">${fmt(total)}</td>
+          <td style="padding:7px 10px;font-size:11px;text-align:right;color:var(--text3)">${pct}%</td>
+        </tr>`;
+      }).join('');
+
+      return `<div style="margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg3);border-radius:6px;margin-bottom:2px">
+          <span style="font-size:13px;font-weight:500;color:var(--text);display:flex;align-items:center;gap:8px">
+            <span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block"></span>
+            ${cat}
+          </span>
+          <span style="font-family:var(--font-mono);font-size:13px;color:${color}">${fmt(totalCat)}</span>
+        </div>
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr>
+            <th style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:6px 10px;text-align:left;border-bottom:1px solid var(--border);font-weight:500">Descripción</th>
+            <th style="border-bottom:1px solid var(--border)"></th>
+            <th style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:6px 10px;text-align:right;border-bottom:1px solid var(--border);font-weight:500">Total</th>
+            <th style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:6px 10px;text-align:right;border-bottom:1px solid var(--border);font-weight:500">%</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+    }).join('');
+  }
 }
 
 function drawDoughnut(id,labels,data,colors){
@@ -795,6 +860,20 @@ function exportarPDF(){
     <table><thead><tr><th>Día</th><th style="text-align:right">Total gastado</th></tr></thead><tbody>
     ${topDias.map(([dia,total])=>`<tr><td>${dia} de ${mesNombre}</td><td class="right">${fmt(total)}</td></tr>`).join('')}
     </tbody></table>
+  </div>
+
+  <!-- DESGLOSE POR DESCRIPCION -->
+  <div class="pdf-section page-break">
+    <div class="pdf-section-title">Desglose por descripción dentro de cada categoría</div>
+    ${catSorted.map((catEntry,ci)=>{
+      const cat = catEntry[0];
+      const totalCat = catEntry[1];
+      const descs = Object.entries(
+        gd.reduce((acc,x)=>{ if((CAT_GD[x.cat]||x.cat)===cat){const d=x.desc||'Sin descripción';acc[d]=(acc[d]||0)+x.monto;} return acc;},{})
+      ).sort((a,b)=>b[1]-a[1]);
+      const color2 = catColors2[ci%catColors2.length];
+      return '<div style="margin-bottom:20px"><div style="background:#f5f5f5;padding:7px 10px;border-radius:4px;margin-bottom:4px;display:flex;justify-content:space-between"><strong>'+cat+'</strong><strong>'+fmt(totalCat)+'</strong></div><table width="100%" style="border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left;padding:5px 8px;background:#fafafa;border:1px solid #eee;font-size:9px;text-transform:uppercase">Descripción</th><th style="text-align:right;padding:5px 8px;background:#fafafa;border:1px solid #eee;font-size:9px;text-transform:uppercase">Total</th><th style="text-align:right;padding:5px 8px;background:#fafafa;border:1px solid #eee;font-size:9px;text-transform:uppercase">%</th></tr></thead><tbody>'+descs.map(([desc,total])=>'<tr><td style="padding:5px 8px;border:1px solid #eee">'+desc+'</td><td style="padding:5px 8px;border:1px solid #eee;text-align:right">'+fmt(total)+'</td><td style="padding:5px 8px;border:1px solid #eee;text-align:right">'+Math.round(total/totalCat*100)+'%</td></tr>').join('')+'</tbody></table></div>';
+    }).join('')}
   </div>
 
   <div class="pdf-footer">mis.finanzas &nbsp;·&nbsp; ${mesNombre} &nbsp;·&nbsp; ${fechaGen}</div>
