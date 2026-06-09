@@ -6,6 +6,7 @@
 <title>Mis Finanzas</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<!-- Firebase -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -87,8 +88,6 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
 .form-title{font-size:13px;font-weight:500;color:var(--text);margin-bottom:16px;display:flex;align-items:center;gap:8px}
 .form-title .dot{width:8px;height:8px;border-radius:50%}
 .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;align-items:end}
-.form-grid.gd-grid{grid-template-columns:1fr 1.2fr 2fr 1fr 1fr}
-@media(max-width:600px){.form-grid.gd-grid{grid-template-columns:1fr}}
 .form-group{display:flex;flex-direction:column;gap:5px}
 .form-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
 .form-input,.form-select{background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-body);font-size:13px;padding:8px 10px;width:100%;transition:border-color .15s;outline:none}
@@ -125,6 +124,32 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
 
 .btn-export{padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text2);font-family:var(--font-body);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s}
 .btn-export:hover{border-color:var(--green);color:var(--green)}
+@media print{
+  nav,.month-nav,.btn-export,.btn-danger,.btn-primary,#toast{display:none!important}
+  body{background:#fff!important;color:#111!important}
+  .section{display:block!important}
+  #sec-pdf{display:block!important}
+  main{padding:0!important}
+  .pdf-page{page-break-after:always}
+  .pdf-header{text-align:center;padding:20px 0 10px;border-bottom:2px solid #111;margin-bottom:20px}
+  .pdf-title{font-size:22px;font-weight:700;color:#111}
+  .pdf-sub{font-size:13px;color:#555;margin-top:4px}
+  .pdf-section{margin-bottom:24px}
+  .pdf-section-title{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#111;border-bottom:1px solid #ddd;padding-bottom:6px;margin-bottom:12px}
+  .pdf-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+  .pdf-kpi{border:1px solid #ddd;border-radius:6px;padding:10px 14px;text-align:center}
+  .pdf-kpi-label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+  .pdf-kpi-value{font-size:18px;font-weight:700}
+  .pdf-kpi-value.green{color:#1a9e6a}.pdf-kpi-value.red{color:#c0392b}.pdf-kpi-value.blue{color:#2471a3}.pdf-kpi-value.amber{color:#b7770d}
+  .pdf-table{width:100%;border-collapse:collapse;font-size:12px}
+  .pdf-table th{background:#f5f5f5;font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:6px 8px;text-align:left;border:1px solid #ddd}
+  .pdf-table td{padding:6px 8px;border:1px solid #eee}
+  .pdf-table tr:nth-child(even) td{background:#fafafa}
+  .pdf-table .right{text-align:right;font-weight:500}
+  .pdf-cat-bar{height:6px;background:#eee;border-radius:3px;overflow:hidden;margin-top:3px}
+  .pdf-cat-fill{height:100%;border-radius:3px}
+  .pdf-footer{text-align:center;font-size:10px;color:#aaa;margin-top:20px;padding-top:10px;border-top:1px solid #eee}
+}
 </style>
 </head>
 <body>
@@ -151,6 +176,7 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
 </div>
 
 <main>
+<!-- DASHBOARD -->
 <div id="sec-dashboard" class="section active">
   <div class="kpis" id="kpis"></div>
   <div class="charts-grid">
@@ -164,6 +190,7 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
   </div>
 </div>
 
+<!-- INGRESOS -->
 <div id="sec-ingresos" class="section">
   <div class="form-card">
     <div class="form-title"><span class="dot" style="background:var(--green)"></span>Registrar ingreso</div>
@@ -176,7 +203,7 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
         </select>
       </div>
       <div class="form-group"><label class="form-label">Descripción</label><input class="form-input" id="ing-desc" type="text" placeholder="Ej: Sueldo mayo"></div>
-      <div class="form-group"><label class="form-label">Monto $</label><input class="form-input" id="ing-monto" type="number" step="0.01" placeholder="0.00"></div>
+      <div class="form-group"><label class="form-label">Monto $</label><input class="form-input" id="ing-monto" type="number" placeholder="0"></div>
       <div class="form-group"><button class="btn btn-primary" id="btn-ing" onclick="addItem('ing')">+ Agregar</button></div>
     </div>
   </div>
@@ -187,6 +214,7 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
   </div>
 </div>
 
+<!-- EGRESOS FIJOS -->
 <div id="sec-egresos" class="section">
   <div class="form-card">
     <div class="form-title"><span class="dot" style="background:var(--red)"></span>Registrar egreso fijo</div>
@@ -202,7 +230,7 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
         </select>
       </div>
       <div class="form-group"><label class="form-label">Descripción</label><input class="form-input" id="eg-desc" type="text" placeholder="Ej: Crédito casa"></div>
-      <div class="form-group"><label class="form-label">Monto $</label><input class="form-input" id="eg-monto" type="number" step="0.01" placeholder="0.00"></div>
+      <div class="form-group"><label class="form-label">Monto $</label><input class="form-input" id="eg-monto" type="number" placeholder="0"></div>
       <div class="form-group"><button class="btn btn-primary" id="btn-eg" onclick="addItem('eg')">+ Agregar</button></div>
     </div>
   </div>
@@ -213,10 +241,11 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
   </div>
 </div>
 
+<!-- GASTOS DIARIOS -->
 <div id="sec-diarios" class="section">
   <div class="form-card">
     <div class="form-title"><span class="dot" style="background:var(--amber)"></span>Registrar gasto del día</div>
-    <div class="form-grid gd-grid">
+    <div class="form-grid">
       <div class="form-group"><label class="form-label">Fecha</label><input class="form-input" id="gd-fecha" type="date"></div>
       <div class="form-group"><label class="form-label">Categoría</label>
         <select class="form-select" id="gd-cat">
@@ -230,7 +259,7 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
         </select>
       </div>
       <div class="form-group"><label class="form-label">Descripción</label><input class="form-input" id="gd-desc" type="text" placeholder="Ej: Supermercado Día"></div>
-      <div class="form-group"><label class="form-label">Monto $</label><input class="form-input" id="gd-monto" type="number" step="0.01" placeholder="0.00"></div>
+      <div class="form-group"><label class="form-label">Monto $</label><input class="form-input" id="gd-monto" type="number" placeholder="0"></div>
       <div class="form-group"><button class="btn btn-primary" id="btn-gd" onclick="addItem('gd')">+ Agregar</button></div>
     </div>
   </div>
@@ -241,28 +270,38 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
   </div>
 </div>
 
+<!-- REPORTES -->
 <div id="sec-reportes" class="section">
+  <!-- KPIs de reportes -->
   <div class="kpis" id="rep-kpis"></div>
+
   <div class="charts-grid">
+    <!-- Por categoría -->
     <div class="chart-card">
       <div class="chart-title">Gasto por categoría</div>
       <div style="position:relative;height:220px"><canvas id="ch-rep-cat"></canvas></div>
     </div>
+    <!-- Por día -->
     <div class="chart-card">
       <div class="chart-title">Gasto por día del mes</div>
       <div style="position:relative;height:220px"><canvas id="ch-rep-dia"></canvas></div>
     </div>
   </div>
+
   <div class="resumen-grid">
+    <!-- Ranking categorías -->
     <div class="form-card">
       <div class="section-header"><h3>Ranking por categoría</h3></div>
       <div id="rep-cat-list"></div>
     </div>
+    <!-- Top días -->
     <div class="form-card">
       <div class="section-header"><h3>Top 5 días más gastadores</h3></div>
       <div id="rep-dia-list"></div>
     </div>
   </div>
+
+  <!-- Desglose por descripción -->
   <div class="form-card" style="margin-top:16px">
     <div class="section-header">
       <h3>Desglose por descripción dentro de cada categoría</h3>
@@ -287,54 +326,39 @@ let cache = {ing:[],eg:[],gd:[]};
 let charts = {};
 let dbReady = false;
 
-function fmt(n){return '$'+Number(n).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function fmt(n){return '$'+Math.round(n).toLocaleString('es-AR')}
 function today(){return new Date().toISOString().split('T')[0]}
 function monthKey(){return currentYear+'_'+String(currentMonth+1).padStart(2,'0')}
 function setSync(state,msg){
   const el = document.getElementById('sync-status');
-  if(el){
-    el.className = 'sync-status sync-'+state;
-    el.textContent = msg;
-  }
+  el.className = 'sync-status sync-'+state;
+  el.textContent = msg;
 }
 
-// CARGA DESDE LA COLECCIÓN ÚNICA 'gastos' (Source 1 - image_35e023.png)
-async function dbLoadAllFields(){
-  if(!dbReady) return {ing:[], eg:[], gd:[]};
+// DB helpers
+async function dbLoad(type){
+  if(!dbReady) return [];
   try{
-    const colRef = window._col(window._db, 'gastos');
+    const colRef = window._col(window._db, type);
     const q = window._query(colRef, window._where('monthKey','==',monthKey()));
     const snap = await window._getDocs(q);
-    
-    const rawDocs = snap.docs.map(d=>({id:d.id,...d.data(),monto:parseFloat(d.data().monto)||0}));
-    
-    // Clasificamos en memoria según el campo "tipo"
-    return {
-      ing: rawDocs.filter(x => x.tipo === 'ing'),
-      eg: rawDocs.filter(x => x.tipo === 'eg'),
-      gd: rawDocs.filter(x => x.tipo === 'gd')
-    };
-  }catch(e){
-    console.error("Error cargando desde colección 'gastos':", e);
-    return {ing:[], eg:[], gd:[]};
-  }
+    return snap.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){console.error(e);return [];}
 }
 
-// GUARDADO EN LA COLECCIÓN ÚNICA 'gastos' INYECTANDO EL CAMPO 'tipo'
 async function dbSave(type, item){
   if(!dbReady) return;
   const id = type+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
-  // Guardamos todo en la colección unificada 'gastos'
-  await window._setDoc(window._doc(window._db, 'gastos', id), {...item, tipo: type, monthKey:monthKey(), id});
+  await window._setDoc(window._doc(window._db, type, id), {...item, monthKey:monthKey(), id});
   return id;
 }
 
-async function dbDelete(id){
+async function dbDelete(type, id){
   if(!dbReady) return;
-  // Borramos directo desde la colección 'gastos'
-  await window._deleteDoc(window._doc(window._db, 'gastos', id));
+  await window._deleteDoc(window._doc(window._db, type, id));
 }
 
+// Navigation
 function updateMonthLabel(){document.getElementById('month-label').textContent = MESES[currentMonth]+' '+currentYear;}
 async function changeMonth(dir){
   currentMonth+=dir;
@@ -357,6 +381,7 @@ function toast(msg){
   setTimeout(()=>t.classList.remove('show'),2200);
 }
 
+// Add items
 async function addItem(type){
   if(!dbReady){toast('⏳ Esperando conexión...');return;}
   let cat,desc,monto,fecha;
@@ -375,7 +400,7 @@ async function addItem(type){
     monto=parseFloat(document.getElementById('gd-monto').value);
     if(!fecha){toast('Ingresá la fecha');return;}
   }
-  if(!desc||isNaN(monto)||monto<=0){toast('Completá todos los campos de forma válida');return;}
+  if(!desc||!monto||monto<=0){toast('Completá todos los campos');return;}
 
   const btn = document.getElementById('btn-'+type);
   btn.disabled=true; btn.textContent='Guardando...';
@@ -397,10 +422,10 @@ async function addItem(type){
   btn.disabled=false; btn.textContent='+ Agregar';
 }
 
-async function deleteItem(id){
+async function deleteItem(type, id){
   setSync('load','⏳ Eliminando...');
   try{
-    await dbDelete(id);
+    await dbDelete(type, id);
     await loadAll();
     setSync('ok','✓ Sincronizado');
     toast('Eliminado');
@@ -410,12 +435,12 @@ async function deleteItem(id){
   }
 }
 
+// Load all data
 async function loadAll(){
-  if(!dbReady) return;
   setSync('load','⏳ Cargando...');
   try{
-    const sortedCache = await dbLoadAllFields();
-    cache = sortedCache;
+    const [ing,eg,gd] = await Promise.all([dbLoad('ing'),dbLoad('eg'),dbLoad('gd')]);
+    cache = {ing,eg,gd};
     renderAll();
     setSync('ok','✓ Sincronizado');
   } catch(e){
@@ -439,7 +464,7 @@ function renderIngresos(){
   if(!data.length){empty.style.display='block';return;}
   empty.style.display='none';
   data.forEach(x=>{
-    tbody.innerHTML+=`<tr><td style="color:var(--text2)">${CAT_ING[x.cat]||x.cat}</td><td>${x.desc}</td><td class="amount green">${fmt(x.monto)}</td><td><button class="btn btn-danger" onclick="deleteItem('${x.id}')">✕</button></td></tr>`;
+    tbody.innerHTML+=`<tr><td style="color:var(--text2)">${CAT_ING[x.cat]||x.cat}</td><td>${x.desc}</td><td class="amount green">${fmt(x.monto)}</td><td><button class="btn btn-danger" onclick="deleteItem('ing','${x.id}')">✕</button></td></tr>`;
   });
 }
 
@@ -451,7 +476,7 @@ function renderEgresos(){
   if(!data.length){empty.style.display='block';return;}
   empty.style.display='none';
   data.forEach(x=>{
-    tbody.innerHTML+=`<tr><td style="color:var(--text2)">${CAT_EG[x.cat]||x.cat}</td><td>${x.desc}</td><td class="amount red">${fmt(x.monto)}</td><td><button class="btn btn-danger" onclick="deleteItem('${x.id}')">✕</button></td></tr>`;
+    tbody.innerHTML+=`<tr><td style="color:var(--text2)">${CAT_EG[x.cat]||x.cat}</td><td>${x.desc}</td><td class="amount red">${fmt(x.monto)}</td><td><button class="btn btn-danger" onclick="deleteItem('eg','${x.id}')">✕</button></td></tr>`;
   });
 }
 
@@ -473,7 +498,7 @@ function renderGastosDiarios(){
       <span class="daily-desc">${x.desc}</span>
       <span class="daily-date">${fechaFmt}</span>
       <span class="daily-amount">${fmt(x.monto)}</span>
-      <button class="btn btn-danger" onclick="deleteItem('${x.id}')">✕</button>
+      <button class="btn btn-danger" onclick="deleteItem('gd','${x.id}')">✕</button>
     </div>`;
   });
 }
@@ -512,4 +537,358 @@ function renderDashboard(){
   const gdEl=document.getElementById('dash-daily-list');
   gdEl.innerHTML=lastGd.length?lastGd.map(x=>{
     const d=(x.fecha||'').split('-');
-    return `<div class="daily-item"><span class="daily-cat ${CAT_COLORS[x.cat]||'cat-otr'}" style="font-size:9px">${CAT_GD
+    return `<div class="daily-item"><span class="daily-cat ${CAT_COLORS[x.cat]||'cat-otr'}" style="font-size:9px">${CAT_GD[x.cat]||x.cat}</span><span class="daily-desc" style="font-size:12px">${x.desc}</span><span class="daily-date">${d.length===3?d[2]+'/'+d[1]:''}</span><span class="daily-amount" style="font-size:12px">${fmt(x.monto)}</span></div>`;
+  }).join(''):'<div class="empty" style="padding:16px">Sin gastos este mes</div>';
+
+  const fixEl=document.getElementById('dash-fixed-list');
+  fixEl.innerHTML=eg.length?eg.map(x=>`<div class="daily-item"><span class="daily-cat cat-otr" style="font-size:9px">${CAT_EG[x.cat]||x.cat}</span><span class="daily-desc" style="font-size:12px">${x.desc}</span><span class="daily-amount" style="font-size:12px;color:var(--red)">${fmt(x.monto)}</span></div>`).join(''):'<div class="empty" style="padding:16px">Sin egresos fijos</div>';
+}
+
+
+function renderReportes(){
+  const gd = cache.gd;
+  const ing = cache.ing;
+  const eg = cache.eg;
+
+  const totalIng = ing.reduce((s,x)=>s+x.monto,0);
+  const totalEg  = eg.reduce((s,x)=>s+x.monto,0);
+  const totalGd  = gd.reduce((s,x)=>s+x.monto,0);
+  const balance  = totalIng - totalEg - totalGd;
+
+  // Dias del mes y dias transcurridos
+  const hoy = new Date();
+  const esElMesActual = (hoy.getFullYear()===currentYear && hoy.getMonth()===currentMonth);
+  const diasDelMes = new Date(currentYear, currentMonth+1, 0).getDate();
+  const diaHoy = esElMesActual ? hoy.getDate() : diasDelMes;
+  const diasRestantes = esElMesActual ? diasDelMes - diaHoy + 1 : 1;
+  const diasTranscurridos = Math.max(diaHoy, 1);
+
+  // Promedio diario
+  const promDiario = totalGd / diasTranscurridos;
+  // Disponible por dia
+  const dispPorDia = diasRestantes > 0 ? balance / diasRestantes : 0;
+
+  // KPIs
+  document.getElementById('rep-kpis').innerHTML = `
+    <div class="kpi"><div class="kpi-label">Total gastado</div><div class="kpi-value red">${fmt(totalGd)}</div></div>
+    <div class="kpi"><div class="kpi-label">Promedio por día</div><div class="kpi-value amber">${fmt(promDiario)}</div><div class="kpi-sub">${diasTranscurridos} días transcurridos</div></div>
+    <div class="kpi"><div class="kpi-label">Disponible por día</div><div class="kpi-value ${dispPorDia>=0?'green':'red'}">${fmt(dispPorDia)}</div><div class="kpi-sub">${diasRestantes} días restantes</div></div>
+    <div class="kpi"><div class="kpi-label">Balance actual</div><div class="kpi-value ${balance>=0?'green':'red'}">${fmt(balance)}</div></div>
+    <div class="kpi"><div class="kpi-label">Día más caro</div><div class="kpi-value blue" id="rep-dia-max">—</div></div>
+    <div class="kpi"><div class="kpi-label">Categoría top</div><div class="kpi-value blue" id="rep-cat-top">—</div></div>
+  `;
+
+  // Por categoría
+  const catTotals = {};
+  gd.forEach(x=>{ const k=CAT_GD[x.cat]||x.cat; catTotals[k]=(catTotals[k]||0)+x.monto; });
+  const catSorted = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
+  if(catSorted.length) document.getElementById('rep-cat-top').textContent = catSorted[0][0];
+
+  const catColors = ['#2dcc8f','#5b8dee','#f0a500','#e8504a','#a78bfa','#f5c542','#8b8994'];
+  if(charts['ch-rep-cat']) charts['ch-rep-cat'].destroy();
+  if(catSorted.length){
+    charts['ch-rep-cat'] = new Chart(document.getElementById('ch-rep-cat'),{
+      type:'doughnut',
+      data:{labels:catSorted.map(x=>x[0]),datasets:[{data:catSorted.map(x=>x[1]),backgroundColor:catColors,borderWidth:0,hoverOffset:4}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#8b8994',font:{size:11},boxWidth:10,padding:8}}}}
+    });
+  }
+
+  // Ranking categorías con barra
+  const maxCat = catSorted.length ? catSorted[0][1] : 1;
+  const catListEl = document.getElementById('rep-cat-list');
+  if(!catSorted.length){ catListEl.innerHTML='<div class="empty" style="padding:16px">Sin datos</div>'; }
+  else {
+    catListEl.innerHTML = catSorted.map((x,i)=>{
+      const pct = Math.round(x[1]/totalGd*100);
+      const barW = Math.round(x[1]/maxCat*100);
+      const color = catColors[i%catColors.length];
+      return `<div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-size:13px;color:var(--text)">${x[0]}</span>
+          <span style="font-family:var(--font-mono);font-size:12px;color:var(--text2)">${fmt(x[1])} <span style="color:var(--text3)">(${pct}%)</span></span>
+        </div>
+        <div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${barW}%;background:${color};border-radius:3px"></div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Por día
+  const diaTotals = {};
+  gd.forEach(x=>{
+    if(!x.fecha) return;
+    const dia = parseInt(x.fecha.split('-')[2]);
+    diaTotals[dia] = (diaTotals[dia]||0) + x.monto;
+  });
+  const diasKeys = Array.from({length:diasDelMes},(_,i)=>i+1);
+  const diasVals = diasKeys.map(d=>diaTotals[d]||0);
+
+  // Dia más caro
+  const maxDiaVal = Math.max(...Object.values(diaTotals),0);
+  const maxDia = Object.entries(diaTotals).find(x=>x[1]===maxDiaVal);
+  if(maxDia) document.getElementById('rep-dia-max').textContent = maxDia[0]+' '+MESES[currentMonth].slice(0,3);
+
+  if(charts['ch-rep-dia']) charts['ch-rep-dia'].destroy();
+  if(diasKeys.length){
+    charts['ch-rep-dia'] = new Chart(document.getElementById('ch-rep-dia'),{
+      type:'bar',
+      data:{labels:diasKeys.map(d=>String(d)),datasets:[{data:diasVals,backgroundColor:diasVals.map(v=>v===maxDiaVal && v>0?'#e8504a':'rgba(91,141,238,0.6)'),borderColor:diasVals.map(v=>v===maxDiaVal && v>0?'#e8504a':'#5b8dee'),borderWidth:1,borderRadius:3}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8b8994',font:{size:10}},grid:{color:'rgba(42,42,53,.5)'}},y:{ticks:{color:'#8b8994',font:{size:10},callback:v=>'$'+Math.round(v/1000)+'K'},grid:{color:'rgba(42,42,53,.5)'}}}}
+    });
+  }
+
+  // Top 5 días
+  const topDias = Object.entries(diaTotals).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const diaListEl = document.getElementById('rep-dia-list');
+  if(!topDias.length){ diaListEl.innerHTML='<div class="empty" style="padding:16px">Sin datos</div>'; }
+  else {
+    diaListEl.innerHTML = topDias.map(([dia,total],i)=>`
+      <div class="daily-item">
+        <span style="font-size:12px;color:var(--text3);font-family:var(--font-mono);width:24px">${i+1}.</span>
+        <span class="daily-desc">${dia} de ${MESES[currentMonth]}</span>
+        <span class="daily-amount">${fmt(total)}</span>
+      </div>`).join('');
+  }
+
+  // Desglose por descripción dentro de cada categoría
+  const descPorCat = {};
+  gd.forEach(x=>{
+    const cat = CAT_GD[x.cat]||x.cat;
+    if(!descPorCat[cat]) descPorCat[cat] = {};
+    const desc = x.desc || 'Sin descripción';
+    descPorCat[cat][desc] = (descPorCat[cat][desc]||0) + x.monto;
+  });
+
+  const descEl = document.getElementById('rep-desc-list');
+  const catOrder = catSorted.map(x=>x[0]);
+  const descColors2 = ['#2dcc8f','#5b8dee','#f0a500','#e8504a','#a78bfa','#f5c542','#8b8994'];
+
+  if(!catOrder.length){
+    descEl.innerHTML='<div class="empty" style="padding:16px">Sin datos</div>';
+  } else {
+    descEl.innerHTML = catOrder.map((cat,ci)=>{
+      const descs = Object.entries(descPorCat[cat]||{}).sort((a,b)=>b[1]-a[1]);
+      const totalCat = descs.reduce((s,x)=>s+x[1],0);
+      const maxDesc = descs.length ? descs[0][1] : 1;
+      const color = descColors2[ci%descColors2.length];
+      const rows = descs.map(([desc,total])=>{
+        const pct = Math.round(total/totalCat*100);
+        const barW = Math.round(total/maxDesc*100);
+        return `<tr>
+          <td style="padding:7px 10px;font-size:13px;color:var(--text)">${desc}</td>
+          <td style="padding:7px 10px;width:40%">
+            <div style="height:5px;background:var(--bg3);border-radius:3px;overflow:hidden">
+              <div style="height:100%;width:${barW}%;background:${color};border-radius:3px"></div>
+            </div>
+          </td>
+          <td style="padding:7px 10px;font-family:var(--font-mono);font-size:12px;text-align:right;color:var(--text2)">${fmt(total)}</td>
+          <td style="padding:7px 10px;font-size:11px;text-align:right;color:var(--text3)">${pct}%</td>
+        </tr>`;
+      }).join('');
+
+      return `<div style="margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg3);border-radius:6px;margin-bottom:2px">
+          <span style="font-size:13px;font-weight:500;color:var(--text);display:flex;align-items:center;gap:8px">
+            <span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block"></span>
+            ${cat}
+          </span>
+          <span style="font-family:var(--font-mono);font-size:13px;color:${color}">${fmt(totalCat)}</span>
+        </div>
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr>
+            <th style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:6px 10px;text-align:left;border-bottom:1px solid var(--border);font-weight:500">Descripción</th>
+            <th style="border-bottom:1px solid var(--border)"></th>
+            <th style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:6px 10px;text-align:right;border-bottom:1px solid var(--border);font-weight:500">Total</th>
+            <th style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:6px 10px;text-align:right;border-bottom:1px solid var(--border);font-weight:500">%</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+    }).join('');
+  }
+}
+
+function drawDoughnut(id,labels,data,colors){
+  if(charts[id])charts[id].destroy();
+  if(!data.length||data.every(v=>v===0))return;
+  charts[id]=new Chart(document.getElementById(id),{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#8b8994',font:{size:11},boxWidth:10,padding:8}}}}});
+}
+
+function drawBar(id,labels,data){
+  if(charts[id])charts[id].destroy();
+  if(!data.length)return;
+  charts[id]=new Chart(document.getElementById(id),{type:'bar',data:{labels,datasets:[{data,backgroundColor:'rgba(240,165,0,0.6)',borderColor:'#f0a500',borderWidth:1,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8b8994',font:{size:11}},grid:{color:'rgba(42,42,53,.5)'}},y:{ticks:{color:'#8b8994',font:{size:11},callback:v=>'$'+Math.round(v/1000)+'K'},grid:{color:'rgba(42,42,53,.5)'}}}}});
+}
+
+// Init
+document.getElementById('gd-fecha').value=today();
+updateMonthLabel();
+
+window.addEventListener('dbReady', async ()=>{
+  dbReady=true;
+  await loadAll();
+});
+
+
+function exportarPDF(){
+  const ing = cache.ing;
+  const eg = cache.eg;
+  const gd = [...cache.gd].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
+
+  const totalIng = ing.reduce((s,x)=>s+x.monto,0);
+  const totalEg  = eg.reduce((s,x)=>s+x.monto,0);
+  const totalGd  = gd.reduce((s,x)=>s+x.monto,0);
+  const balance  = totalIng - totalEg - totalGd;
+
+  const hoy = new Date();
+  const esActual = (hoy.getFullYear()===currentYear && hoy.getMonth()===currentMonth);
+  const diasDelMes = new Date(currentYear, currentMonth+1, 0).getDate();
+  const diaHoy = esActual ? hoy.getDate() : diasDelMes;
+  const diasTrans = Math.max(diaHoy,1);
+  const diasRest = esActual ? diasDelMes - diaHoy + 1 : 1;
+  const promDiario = totalGd / diasTrans;
+  const dispDia = diasRest > 0 ? balance / diasRest : 0;
+
+  // Por categoría
+  const catTotals = {};
+  gd.forEach(x=>{const k=CAT_GD[x.cat]||x.cat;catTotals[k]=(catTotals[k]||0)+x.monto;});
+  const catSorted = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
+  const maxCat = catSorted.length ? catSorted[0][1] : 1;
+  const catColors2 = ['#2dcc8f','#5b8dee','#f0a500','#e8504a','#a78bfa','#f5c542','#8b8994'];
+
+  // Por día top 5
+  const diaTotals = {};
+  gd.forEach(x=>{ if(!x.fecha)return; const d=parseInt(x.fecha.split('-')[2]); diaTotals[d]=(diaTotals[d]||0)+x.monto; });
+  const topDias = Object.entries(diaTotals).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  const mesNombre = MESES[currentMonth] + ' ' + currentYear;
+  const fechaGen = hoy.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html lang="es"><head>
+  <meta charset="UTF-8">
+  <title>Resumen ${mesNombre}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Helvetica Neue',Arial,sans-serif;font-size:13px;color:#111;background:#fff;padding:24px}
+    .pdf-header{text-align:center;padding-bottom:14px;border-bottom:2px solid #111;margin-bottom:20px}
+    .pdf-title{font-size:24px;font-weight:700}
+    .pdf-sub{font-size:12px;color:#666;margin-top:4px}
+    .pdf-section{margin-bottom:24px}
+    .pdf-section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#333;border-bottom:1px solid #ddd;padding-bottom:5px;margin-bottom:12px}
+    .pdf-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:4px}
+    .pdf-kpi{border:1px solid #ddd;border-radius:6px;padding:10px 12px;text-align:center}
+    .pdf-kpi-label{font-size:9px;color:#999;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+    .pdf-kpi-value{font-size:17px;font-weight:700}
+    .green{color:#1a9e6a}.red{color:#c0392b}.blue{color:#2471a3}.amber{color:#b7770d}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th{background:#f5f5f5;font-size:9px;text-transform:uppercase;letter-spacing:.06em;padding:6px 8px;text-align:left;border:1px solid #ddd}
+    td{padding:6px 8px;border:1px solid #eee}
+    tr:nth-child(even) td{background:#fafafa}
+    .right{text-align:right;font-weight:600}
+    .bar-wrap{height:5px;background:#eee;border-radius:3px;overflow:hidden;margin-top:3px}
+    .bar-fill{height:100%;border-radius:3px}
+    .total-row td{font-weight:700;background:#f0f0f0!important;border-top:2px solid #ccc}
+    .page-break{page-break-before:always;padding-top:20px}
+    .pdf-footer{text-align:center;font-size:9px;color:#bbb;margin-top:30px;padding-top:10px;border-top:1px solid #eee}
+    @media print{body{padding:16px}.pdf-btn{display:none}}
+  </style>
+  </head><body>
+
+  <div class="pdf-header">
+    <div class="pdf-title">mis.finanzas</div>
+    <div class="pdf-sub">Resumen de ${mesNombre} &nbsp;·&nbsp; Generado el ${fechaGen}</div>
+  </div>
+
+  <!-- RESUMEN GENERAL -->
+  <div class="pdf-section">
+    <div class="pdf-section-title">Resumen general</div>
+    <div class="pdf-kpis">
+      <div class="pdf-kpi"><div class="pdf-kpi-label">Total ingresos</div><div class="pdf-kpi-value green">${fmt(totalIng)}</div></div>
+      <div class="pdf-kpi"><div class="pdf-kpi-label">Egresos fijos</div><div class="pdf-kpi-value red">${fmt(totalEg)}</div></div>
+      <div class="pdf-kpi"><div class="pdf-kpi-label">Gastos diarios</div><div class="pdf-kpi-value amber">${fmt(totalGd)}</div></div>
+      <div class="pdf-kpi"><div class="pdf-kpi-label">Balance</div><div class="pdf-kpi-value ${balance>=0?'green':'red'}">${fmt(balance)}</div></div>
+      <div class="pdf-kpi"><div class="pdf-kpi-label">Promedio diario</div><div class="pdf-kpi-value blue">${fmt(promDiario)}</div></div>
+      <div class="pdf-kpi"><div class="pdf-kpi-label">Disponible/día</div><div class="pdf-kpi-value ${dispDia>=0?'green':'red'}">${fmt(dispDia)}</div></div>
+    </div>
+  </div>
+
+  <!-- INGRESOS -->
+  <div class="pdf-section">
+    <div class="pdf-section-title">Ingresos</div>
+    <table><thead><tr><th>Categoría</th><th>Descripción</th><th style="text-align:right">Monto</th></tr></thead><tbody>
+    ${ing.map(x=>`<tr><td>${CAT_ING[x.cat]||x.cat}</td><td>${x.desc}</td><td class="right green">${fmt(x.monto)}</td></tr>`).join('')}
+    <tr class="total-row"><td colspan="2">TOTAL</td><td class="right green">${fmt(totalIng)}</td></tr>
+    </tbody></table>
+  </div>
+
+  <!-- EGRESOS FIJOS -->
+  <div class="pdf-section">
+    <div class="pdf-section-title">Egresos fijos</div>
+    <table><thead><tr><th>Categoría</th><th>Descripción</th><th style="text-align:right">Monto</th></tr></thead><tbody>
+    ${eg.map(x=>`<tr><td>${CAT_EG[x.cat]||x.cat}</td><td>${x.desc}</td><td class="right red">${fmt(x.monto)}</td></tr>`).join('')}
+    <tr class="total-row"><td colspan="2">TOTAL</td><td class="right red">${fmt(totalEg)}</td></tr>
+    </tbody></table>
+  </div>
+
+  <!-- GASTOS DIARIOS -->
+  <div class="pdf-section page-break">
+    <div class="pdf-section-title">Gastos diarios</div>
+    <table><thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th style="text-align:right">Monto</th></tr></thead><tbody>
+    ${gd.map(x=>{const d=(x.fecha||'').split('-');const f=d.length===3?d[2]+'/'+d[1]+'/'+d[0]:'';return `<tr><td>${f}</td><td>${CAT_GD[x.cat]||x.cat}</td><td>${x.desc}</td><td class="right red">${fmt(x.monto)}</td></tr>`;}).join('')}
+    <tr class="total-row"><td colspan="3">TOTAL</td><td class="right red">${fmt(totalGd)}</td></tr>
+    </tbody></table>
+  </div>
+
+  <!-- REPORTES -->
+  <div class="pdf-section page-break">
+    <div class="pdf-section-title">Reporte por categoría</div>
+    <table><thead><tr><th>Categoría</th><th style="text-align:right">Total</th><th style="text-align:right">%</th></tr></thead><tbody>
+    ${catSorted.map((x,i)=>{
+      const pct=Math.round(x[1]/totalGd*100);
+      const barW=Math.round(x[1]/maxCat*100);
+      const color=catColors2[i%catColors2.length];
+      return `<tr><td><div>${x[0]}</div><div class="bar-wrap"><div class="bar-fill" style="width:${barW}%;background:${color}"></div></div></td><td class="right">${fmt(x[1])}</td><td class="right">${pct}%</td></tr>`;
+    }).join('')}
+    </tbody></table>
+  </div>
+
+  <div class="pdf-section">
+    <div class="pdf-section-title">Top 5 días con más gastos</div>
+    <table><thead><tr><th>Día</th><th style="text-align:right">Total gastado</th></tr></thead><tbody>
+    ${topDias.map(([dia,total])=>`<tr><td>${dia} de ${mesNombre}</td><td class="right">${fmt(total)}</td></tr>`).join('')}
+    </tbody></table>
+  </div>
+
+  <!-- DESGLOSE POR DESCRIPCION -->
+  <div class="pdf-section page-break">
+    <div class="pdf-section-title">Desglose por descripción dentro de cada categoría</div>
+    ${catSorted.map((catEntry,ci)=>{
+      const cat = catEntry[0];
+      const totalCat = catEntry[1];
+      const descs = Object.entries(
+        gd.reduce((acc,x)=>{ if((CAT_GD[x.cat]||x.cat)===cat){const d=x.desc||'Sin descripción';acc[d]=(acc[d]||0)+x.monto;} return acc;},{})
+      ).sort((a,b)=>b[1]-a[1]);
+      const color2 = catColors2[ci%catColors2.length];
+      return '<div style="margin-bottom:20px"><div style="background:#f5f5f5;padding:7px 10px;border-radius:4px;margin-bottom:4px;display:flex;justify-content:space-between"><strong>'+cat+'</strong><strong>'+fmt(totalCat)+'</strong></div><table width="100%" style="border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left;padding:5px 8px;background:#fafafa;border:1px solid #eee;font-size:9px;text-transform:uppercase">Descripción</th><th style="text-align:right;padding:5px 8px;background:#fafafa;border:1px solid #eee;font-size:9px;text-transform:uppercase">Total</th><th style="text-align:right;padding:5px 8px;background:#fafafa;border:1px solid #eee;font-size:9px;text-transform:uppercase">%</th></tr></thead><tbody>'+descs.map(([desc,total])=>'<tr><td style="padding:5px 8px;border:1px solid #eee">'+desc+'</td><td style="padding:5px 8px;border:1px solid #eee;text-align:right">'+fmt(total)+'</td><td style="padding:5px 8px;border:1px solid #eee;text-align:right">'+Math.round(total/totalCat*100)+'%</td></tr>').join('')+'</tbody></table></div>';
+    }).join('')}
+  </div>
+
+  <div class="pdf-footer">mis.finanzas &nbsp;·&nbsp; ${mesNombre} &nbsp;·&nbsp; ${fechaGen}</div>
+
+  <script>window.print();<\/script>
+  </body></html>`);
+  win.document.close();
+}
+
+// Firestore rules reminder timeout
+setTimeout(()=>{
+  if(document.getElementById('sync-status').classList.contains('sync-load')){
+    setSync('err','✗ Revisar reglas DB');
+  }
+},8000);
+</script>
+</body>
+</html>
