@@ -6,7 +6,6 @@
 <title>Mis Finanzas</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<!-- Firebase -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -88,6 +87,8 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
 .form-title{font-size:13px;font-weight:500;color:var(--text);margin-bottom:16px;display:flex;align-items:center;gap:8px}
 .form-title .dot{width:8px;height:8px;border-radius:50%}
 .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;align-items:end}
+.form-grid.gd-grid{grid-template-columns:1fr 1.2fr 2fr 1fr 1fr}
+@media(max-width:600px){.form-grid.gd-grid{grid-template-columns:1fr}}
 .form-group{display:flex;flex-direction:column;gap:5px}
 .form-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
 .form-input,.form-select{background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-body);font-size:13px;padding:8px 10px;width:100%;transition:border-color .15s;outline:none}
@@ -124,32 +125,6 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
 
 .btn-export{padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text2);font-family:var(--font-body);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s}
 .btn-export:hover{border-color:var(--green);color:var(--green)}
-@media print{
-  nav,.month-nav,.btn-export,.btn-danger,.btn-primary,#toast{display:none!important}
-  body{background:#fff!important;color:#111!important}
-  .section{display:block!important}
-  #sec-pdf{display:block!important}
-  main{padding:0!important}
-  .pdf-page{page-break-after:always}
-  .pdf-header{text-align:center;padding:20px 0 10px;border-bottom:2px solid #111;margin-bottom:20px}
-  .pdf-title{font-size:22px;font-weight:700;color:#111}
-  .pdf-sub{font-size:13px;color:#555;margin-top:4px}
-  .pdf-section{margin-bottom:24px}
-  .pdf-section-title{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#111;border-bottom:1px solid #ddd;padding-bottom:6px;margin-bottom:12px}
-  .pdf-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
-  .pdf-kpi{border:1px solid #ddd;border-radius:6px;padding:10px 14px;text-align:center}
-  .pdf-kpi-label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
-  .pdf-kpi-value{font-size:18px;font-weight:700}
-  .pdf-kpi-value.green{color:#1a9e6a}.pdf-kpi-value.red{color:#c0392b}.pdf-kpi-value.blue{color:#2471a3}.pdf-kpi-value.amber{color:#b7770d}
-  .pdf-table{width:100%;border-collapse:collapse;font-size:12px}
-  .pdf-table th{background:#f5f5f5;font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:6px 8px;text-align:left;border:1px solid #ddd}
-  .pdf-table td{padding:6px 8px;border:1px solid #eee}
-  .pdf-table tr:nth-child(even) td{background:#fafafa}
-  .pdf-table .right{text-align:right;font-weight:500}
-  .pdf-cat-bar{height:6px;background:#eee;border-radius:3px;overflow:hidden;margin-top:3px}
-  .pdf-cat-fill{height:100%;border-radius:3px}
-  .pdf-footer{text-align:center;font-size:10px;color:#aaa;margin-top:20px;padding-top:10px;border-top:1px solid #eee}
-}
 </style>
 </head>
 <body>
@@ -176,7 +151,6 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
 </div>
 
 <main>
-<!-- DASHBOARD -->
 <div id="sec-dashboard" class="section active">
   <div class="kpis" id="kpis"></div>
   <div class="charts-grid">
@@ -190,7 +164,6 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
   </div>
 </div>
 
-<!-- INGRESOS -->
 <div id="sec-ingresos" class="section">
   <div class="form-card">
     <div class="form-title"><span class="dot" style="background:var(--green)"></span>Registrar ingreso</div>
@@ -203,7 +176,7 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
         </select>
       </div>
       <div class="form-group"><label class="form-label">Descripción</label><input class="form-input" id="ing-desc" type="text" placeholder="Ej: Sueldo mayo"></div>
-      <div class="form-group"><label class="form-label">Monto $</label><input class="form-input" id="ing-monto" type="number" placeholder="0"></div>
+      <div class="form-group"><label class="form-label">Monto $</label><input class="form-input" id="ing-monto" type="number" step="0.01" placeholder="0.00"></div>
       <div class="form-group"><button class="btn btn-primary" id="btn-ing" onclick="addItem('ing')">+ Agregar</button></div>
     </div>
   </div>
@@ -214,7 +187,6 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
   </div>
 </div>
 
-<!-- EGRESOS FIJOS -->
 <div id="sec-egresos" class="section">
   <div class="form-card">
     <div class="form-title"><span class="dot" style="background:var(--red)"></span>Registrar egreso fijo</div>
@@ -230,7 +202,7 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
         </select>
       </div>
       <div class="form-group"><label class="form-label">Descripción</label><input class="form-input" id="eg-desc" type="text" placeholder="Ej: Crédito casa"></div>
-      <div class="form-group"><label class="form-label">Monto $</label><input class="form-input" id="eg-monto" type="number" placeholder="0"></div>
+      <div class="form-group"><label class="form-label">Monto $</label><input class="form-input" id="eg-monto" type="number" step="0.01" placeholder="0.00"></div>
       <div class="form-group"><button class="btn btn-primary" id="btn-eg" onclick="addItem('eg')">+ Agregar</button></div>
     </div>
   </div>
@@ -241,11 +213,10 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
   </div>
 </div>
 
-<!-- GASTOS DIARIOS -->
 <div id="sec-diarios" class="section">
   <div class="form-card">
     <div class="form-title"><span class="dot" style="background:var(--amber)"></span>Registrar gasto del día</div>
-    <div class="form-grid">
+    <div class="form-grid gd-grid">
       <div class="form-group"><label class="form-label">Fecha</label><input class="form-input" id="gd-fecha" type="date"></div>
       <div class="form-group"><label class="form-label">Categoría</label>
         <select class="form-select" id="gd-cat">
@@ -259,7 +230,7 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
         </select>
       </div>
       <div class="form-group"><label class="form-label">Descripción</label><input class="form-input" id="gd-desc" type="text" placeholder="Ej: Supermercado Día"></div>
-      <div class="form-group"><label class="form-label">Monto $</label><input class="form-input" id="gd-monto" type="number" placeholder="0"></div>
+      <div class="form-group"><label class="form-label">Monto $</label><input class="form-input" id="gd-monto" type="number" step="0.01" placeholder="0.00"></div>
       <div class="form-group"><button class="btn btn-primary" id="btn-gd" onclick="addItem('gd')">+ Agregar</button></div>
     </div>
   </div>
@@ -270,38 +241,28 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
   </div>
 </div>
 
-<!-- REPORTES -->
 <div id="sec-reportes" class="section">
-  <!-- KPIs de reportes -->
   <div class="kpis" id="rep-kpis"></div>
-
   <div class="charts-grid">
-    <!-- Por categoría -->
     <div class="chart-card">
       <div class="chart-title">Gasto por categoría</div>
       <div style="position:relative;height:220px"><canvas id="ch-rep-cat"></canvas></div>
     </div>
-    <!-- Por día -->
     <div class="chart-card">
       <div class="chart-title">Gasto por día del mes</div>
       <div style="position:relative;height:220px"><canvas id="ch-rep-dia"></canvas></div>
     </div>
   </div>
-
   <div class="resumen-grid">
-    <!-- Ranking categorías -->
     <div class="form-card">
       <div class="section-header"><h3>Ranking por categoría</h3></div>
       <div id="rep-cat-list"></div>
     </div>
-    <!-- Top días -->
     <div class="form-card">
       <div class="section-header"><h3>Top 5 días más gastadores</h3></div>
       <div id="rep-dia-list"></div>
     </div>
   </div>
-
-  <!-- Desglose por descripción -->
   <div class="form-card" style="margin-top:16px">
     <div class="section-header">
       <h3>Desglose por descripción dentro de cada categoría</h3>
@@ -326,23 +287,24 @@ let cache = {ing:[],eg:[],gd:[]};
 let charts = {};
 let dbReady = false;
 
-function fmt(n){return '$'+Math.round(n).toLocaleString('es-AR')}
+function fmt(n){return '$'+Number(n).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function today(){return new Date().toISOString().split('T')[0]}
 function monthKey(){return currentYear+'_'+String(currentMonth+1).padStart(2,'0')}
 function setSync(state,msg){
   const el = document.getElementById('sync-status');
-  el.className = 'sync-status sync-'+state;
-  el.textContent = msg;
+  if(el){
+    el.className = 'sync-status sync-'+state;
+    el.textContent = msg;
+  }
 }
 
-// DB helpers
 async function dbLoad(type){
   if(!dbReady) return [];
   try{
     const colRef = window._col(window._db, type);
     const q = window._query(colRef, window._where('monthKey','==',monthKey()));
     const snap = await window._getDocs(q);
-    return snap.docs.map(d=>({id:d.id,...d.data()}));
+    return snap.docs.map(d=>({id:d.id,...d.data(),monto:parseFloat(d.data().monto)||0}));
   }catch(e){console.error(e);return [];}
 }
 
@@ -358,7 +320,6 @@ async function dbDelete(type, id){
   await window._deleteDoc(window._doc(window._db, type, id));
 }
 
-// Navigation
 function updateMonthLabel(){document.getElementById('month-label').textContent = MESES[currentMonth]+' '+currentYear;}
 async function changeMonth(dir){
   currentMonth+=dir;
@@ -381,7 +342,6 @@ function toast(msg){
   setTimeout(()=>t.classList.remove('show'),2200);
 }
 
-// Add items
 async function addItem(type){
   if(!dbReady){toast('⏳ Esperando conexión...');return;}
   let cat,desc,monto,fecha;
@@ -400,7 +360,7 @@ async function addItem(type){
     monto=parseFloat(document.getElementById('gd-monto').value);
     if(!fecha){toast('Ingresá la fecha');return;}
   }
-  if(!desc||!monto||monto<=0){toast('Completá todos los campos');return;}
+  if(!desc||isNaN(monto)||monto<=0){toast('Completá todos los campos de forma válida');return;}
 
   const btn = document.getElementById('btn-'+type);
   btn.disabled=true; btn.textContent='Guardando...';
@@ -435,8 +395,8 @@ async function deleteItem(type, id){
   }
 }
 
-// Load all data
 async function loadAll(){
+  if(!dbReady) return;
   setSync('load','⏳ Cargando...');
   try{
     const [ing,eg,gd] = await Promise.all([dbLoad('ing'),dbLoad('eg'),dbLoad('gd')]);
@@ -544,7 +504,6 @@ function renderDashboard(){
   fixEl.innerHTML=eg.length?eg.map(x=>`<div class="daily-item"><span class="daily-cat cat-otr" style="font-size:9px">${CAT_EG[x.cat]||x.cat}</span><span class="daily-desc" style="font-size:12px">${x.desc}</span><span class="daily-amount" style="font-size:12px;color:var(--red)">${fmt(x.monto)}</span></div>`).join(''):'<div class="empty" style="padding:16px">Sin egresos fijos</div>';
 }
 
-
 function renderReportes(){
   const gd = cache.gd;
   const ing = cache.ing;
@@ -555,7 +514,6 @@ function renderReportes(){
   const totalGd  = gd.reduce((s,x)=>s+x.monto,0);
   const balance  = totalIng - totalEg - totalGd;
 
-  // Dias del mes y dias transcurridos
   const hoy = new Date();
   const esElMesActual = (hoy.getFullYear()===currentYear && hoy.getMonth()===currentMonth);
   const diasDelMes = new Date(currentYear, currentMonth+1, 0).getDate();
@@ -563,12 +521,9 @@ function renderReportes(){
   const diasRestantes = esElMesActual ? diasDelMes - diaHoy + 1 : 1;
   const diasTranscurridos = Math.max(diaHoy, 1);
 
-  // Promedio diario
   const promDiario = totalGd / diasTranscurridos;
-  // Disponible por dia
   const dispPorDia = diasRestantes > 0 ? balance / diasRestantes : 0;
 
-  // KPIs
   document.getElementById('rep-kpis').innerHTML = `
     <div class="kpi"><div class="kpi-label">Total gastado</div><div class="kpi-value red">${fmt(totalGd)}</div></div>
     <div class="kpi"><div class="kpi-label">Promedio por día</div><div class="kpi-value amber">${fmt(promDiario)}</div><div class="kpi-sub">${diasTranscurridos} días transcurridos</div></div>
@@ -578,13 +533,13 @@ function renderReportes(){
     <div class="kpi"><div class="kpi-label">Categoría top</div><div class="kpi-value blue" id="rep-cat-top">—</div></div>
   `;
 
-  // Por categoría
   const catTotals = {};
   gd.forEach(x=>{ const k=CAT_GD[x.cat]||x.cat; catTotals[k]=(catTotals[k]||0)+x.monto; });
   const catSorted = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
   if(catSorted.length) document.getElementById('rep-cat-top').textContent = catSorted[0][0];
 
   const catColors = ['#2dcc8f','#5b8dee','#f0a500','#e8504a','#a78bfa','#f5c542','#8b8994'];
+  
   if(charts['ch-rep-cat']) charts['ch-rep-cat'].destroy();
   if(catSorted.length){
     charts['ch-rep-cat'] = new Chart(document.getElementById('ch-rep-cat'),{
@@ -594,13 +549,12 @@ function renderReportes(){
     });
   }
 
-  // Ranking categorías con barra
   const maxCat = catSorted.length ? catSorted[0][1] : 1;
   const catListEl = document.getElementById('rep-cat-list');
   if(!catSorted.length){ catListEl.innerHTML='<div class="empty" style="padding:16px">Sin datos</div>'; }
   else {
     catListEl.innerHTML = catSorted.map((x,i)=>{
-      const pct = Math.round(x[1]/totalGd*100);
+      const pct = totalGd>0?Math.round(x[1]/totalGd*100):0;
       const barW = Math.round(x[1]/maxCat*100);
       const color = catColors[i%catColors.length];
       return `<div style="margin-bottom:12px">
@@ -615,7 +569,6 @@ function renderReportes(){
     }).join('');
   }
 
-  // Por día
   const diaTotals = {};
   gd.forEach(x=>{
     if(!x.fecha) return;
@@ -625,10 +578,10 @@ function renderReportes(){
   const diasKeys = Array.from({length:diasDelMes},(_,i)=>i+1);
   const diasVals = diasKeys.map(d=>diaTotals[d]||0);
 
-  // Dia más caro
   const maxDiaVal = Math.max(...Object.values(diaTotals),0);
   const maxDia = Object.entries(diaTotals).find(x=>x[1]===maxDiaVal);
-  if(maxDia) document.getElementById('rep-dia-max').textContent = maxDia[0]+' '+MESES[currentMonth].slice(0,3);
+  if(maxDia && maxDiaVal > 0) document.getElementById('rep-dia-max').textContent = maxDia[0]+' '+MESES[currentMonth].slice(0,3);
+  else document.getElementById('rep-dia-max').textContent = '—';
 
   if(charts['ch-rep-dia']) charts['ch-rep-dia'].destroy();
   if(diasKeys.length){
@@ -639,10 +592,9 @@ function renderReportes(){
     });
   }
 
-  // Top 5 días
   const topDias = Object.entries(diaTotals).sort((a,b)=>b[1]-a[1]).slice(0,5);
   const diaListEl = document.getElementById('rep-dia-list');
-  if(!topDias.length){ diaListEl.innerHTML='<div class="empty" style="padding:16px">Sin datos</div>'; }
+  if(!topDias.length || maxDiaVal === 0){ diaListEl.innerHTML='<div class="empty" style="padding:16px">Sin datos</div>'; }
   else {
     diaListEl.innerHTML = topDias.map(([dia,total],i)=>`
       <div class="daily-item">
@@ -652,7 +604,6 @@ function renderReportes(){
       </div>`).join('');
   }
 
-  // Desglose por descripción dentro de cada categoría
   const descPorCat = {};
   gd.forEach(x=>{
     const cat = CAT_GD[x.cat]||x.cat;
@@ -674,7 +625,7 @@ function renderReportes(){
       const maxDesc = descs.length ? descs[0][1] : 1;
       const color = descColors2[ci%descColors2.length];
       const rows = descs.map(([desc,total])=>{
-        const pct = Math.round(total/totalCat*100);
+        const pct = totalCat>0?Math.round(total/totalCat*100):0;
         const barW = Math.round(total/maxDesc*100);
         return `<tr>
           <td style="padding:7px 10px;font-size:13px;color:var(--text)">${desc}</td>
@@ -711,26 +662,30 @@ function renderReportes(){
 }
 
 function drawDoughnut(id,labels,data,colors){
-  if(charts[id])charts[id].destroy();
-  if(!data.length||data.every(v=>v===0))return;
+  if(charts[id]) charts[id].destroy();
+  if(!data.length||data.every(v=>v===0)) return;
   charts[id]=new Chart(document.getElementById(id),{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#8b8994',font:{size:11},boxWidth:10,padding:8}}}}});
 }
 
 function drawBar(id,labels,data){
-  if(charts[id])charts[id].destroy();
+  if(charts[id]) charts[id].destroy();
   if(!data.length)return;
   charts[id]=new Chart(document.getElementById(id),{type:'bar',data:{labels,datasets:[{data,backgroundColor:'rgba(240,165,0,0.6)',borderColor:'#f0a500',borderWidth:1,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8b8994',font:{size:11}},grid:{color:'rgba(42,42,53,.5)'}},y:{ticks:{color:'#8b8994',font:{size:11},callback:v=>'$'+Math.round(v/1000)+'K'},grid:{color:'rgba(42,42,53,.5)'}}}}});
 }
 
-// Init
+// Inicialización Sincronizada
 document.getElementById('gd-fecha').value=today();
 updateMonthLabel();
 
-window.addEventListener('dbReady', async ()=>{
-  dbReady=true;
+const initLoad = async () => {
+  dbReady = true;
   await loadAll();
-});
+};
 
+window.addEventListener('dbReady', initLoad);
+if (window._dbReady && !dbReady) {
+  initLoad();
+}
 
 function exportarPDF(){
   const ing = cache.ing;
@@ -751,14 +706,12 @@ function exportarPDF(){
   const promDiario = totalGd / diasTrans;
   const dispDia = diasRest > 0 ? balance / diasRest : 0;
 
-  // Por categoría
   const catTotals = {};
   gd.forEach(x=>{const k=CAT_GD[x.cat]||x.cat;catTotals[k]=(catTotals[k]||0)+x.monto;});
   const catSorted = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
   const maxCat = catSorted.length ? catSorted[0][1] : 1;
   const catColors2 = ['#2dcc8f','#5b8dee','#f0a500','#e8504a','#a78bfa','#f5c542','#8b8994'];
 
-  // Por día top 5
   const diaTotals = {};
   gd.forEach(x=>{ if(!x.fecha)return; const d=parseInt(x.fecha.split('-')[2]); diaTotals[d]=(diaTotals[d]||0)+x.monto; });
   const topDias = Object.entries(diaTotals).sort((a,b)=>b[1]-a[1]).slice(0,5);
@@ -796,13 +749,10 @@ function exportarPDF(){
     @media print{body{padding:16px}.pdf-btn{display:none}}
   </style>
   </head><body>
-
   <div class="pdf-header">
     <div class="pdf-title">mis.finanzas</div>
     <div class="pdf-sub">Resumen de ${mesNombre} &nbsp;·&nbsp; Generado el ${fechaGen}</div>
   </div>
-
-  <!-- RESUMEN GENERAL -->
   <div class="pdf-section">
     <div class="pdf-section-title">Resumen general</div>
     <div class="pdf-kpis">
@@ -814,8 +764,6 @@ function exportarPDF(){
       <div class="pdf-kpi"><div class="pdf-kpi-label">Disponible/día</div><div class="pdf-kpi-value ${dispDia>=0?'green':'red'}">${fmt(dispDia)}</div></div>
     </div>
   </div>
-
-  <!-- INGRESOS -->
   <div class="pdf-section">
     <div class="pdf-section-title">Ingresos</div>
     <table><thead><tr><th>Categoría</th><th>Descripción</th><th style="text-align:right">Monto</th></tr></thead><tbody>
@@ -823,8 +771,6 @@ function exportarPDF(){
     <tr class="total-row"><td colspan="2">TOTAL</td><td class="right green">${fmt(totalIng)}</td></tr>
     </tbody></table>
   </div>
-
-  <!-- EGRESOS FIJOS -->
   <div class="pdf-section">
     <div class="pdf-section-title">Egresos fijos</div>
     <table><thead><tr><th>Categoría</th><th>Descripción</th><th style="text-align:right">Monto</th></tr></thead><tbody>
@@ -832,8 +778,6 @@ function exportarPDF(){
     <tr class="total-row"><td colspan="2">TOTAL</td><td class="right red">${fmt(totalEg)}</td></tr>
     </tbody></table>
   </div>
-
-  <!-- GASTOS DIARIOS -->
   <div class="pdf-section page-break">
     <div class="pdf-section-title">Gastos diarios</div>
     <table><thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th style="text-align:right">Monto</th></tr></thead><tbody>
@@ -841,28 +785,23 @@ function exportarPDF(){
     <tr class="total-row"><td colspan="3">TOTAL</td><td class="right red">${fmt(totalGd)}</td></tr>
     </tbody></table>
   </div>
-
-  <!-- REPORTES -->
   <div class="pdf-section page-break">
     <div class="pdf-section-title">Reporte por categoría</div>
     <table><thead><tr><th>Categoría</th><th style="text-align:right">Total</th><th style="text-align:right">%</th></tr></thead><tbody>
     ${catSorted.map((x,i)=>{
-      const pct=Math.round(x[1]/totalGd*100);
+      const pct=totalGd>0?Math.round(x[1]/totalGd*100):0;
       const barW=Math.round(x[1]/maxCat*100);
       const color=catColors2[i%catColors2.length];
       return `<tr><td><div>${x[0]}</div><div class="bar-wrap"><div class="bar-fill" style="width:${barW}%;background:${color}"></div></div></td><td class="right">${fmt(x[1])}</td><td class="right">${pct}%</td></tr>`;
     }).join('')}
     </tbody></table>
   </div>
-
   <div class="pdf-section">
     <div class="pdf-section-title">Top 5 días con más gastos</div>
     <table><thead><tr><th>Día</th><th style="text-align:right">Total gastado</th></tr></thead><tbody>
-    ${topDias.map(([dia,total])=>`<tr><td>${dia} de ${mesNombre}</td><td class="right">${fmt(total)}</td></tr>`).join('')}
+    ${topDias.map(([dia,total])=>`<tr><td>${dia} de ${MESES[currentMonth]}</td><td class="right">${fmt(total)}</td></tr>`).join('')}
     </tbody></table>
   </div>
-
-  <!-- DESGLOSE POR DESCRIPCION -->
   <div class="pdf-section page-break">
     <div class="pdf-section-title">Desglose por descripción dentro de cada categoría</div>
     ${catSorted.map((catEntry,ci)=>{
@@ -871,21 +810,18 @@ function exportarPDF(){
       const descs = Object.entries(
         gd.reduce((acc,x)=>{ if((CAT_GD[x.cat]||x.cat)===cat){const d=x.desc||'Sin descripción';acc[d]=(acc[d]||0)+x.monto;} return acc;},{})
       ).sort((a,b)=>b[1]-a[1]);
-      const color2 = catColors2[ci%catColors2.length];
-      return '<div style="margin-bottom:20px"><div style="background:#f5f5f5;padding:7px 10px;border-radius:4px;margin-bottom:4px;display:flex;justify-content:space-between"><strong>'+cat+'</strong><strong>'+fmt(totalCat)+'</strong></div><table width="100%" style="border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left;padding:5px 8px;background:#fafafa;border:1px solid #eee;font-size:9px;text-transform:uppercase">Descripción</th><th style="text-align:right;padding:5px 8px;background:#fafafa;border:1px solid #eee;font-size:9px;text-transform:uppercase">Total</th><th style="text-align:right;padding:5px 8px;background:#fafafa;border:1px solid #eee;font-size:9px;text-transform:uppercase">%</th></tr></thead><tbody>'+descs.map(([desc,total])=>'<tr><td style="padding:5px 8px;border:1px solid #eee">'+desc+'</td><td style="padding:5px 8px;border:1px solid #eee;text-align:right">'+fmt(total)+'</td><td style="padding:5px 8px;border:1px solid #eee;text-align:right">'+Math.round(total/totalCat*100)+'%</td></tr>').join('')+'</tbody></table></div>';
+      return '<div style="margin-bottom:20px"><div style="background:#f5f5f5;padding:7px 10px;border-radius:4px;margin-bottom:4px;display:flex;justify-content:space-between"><strong>'+cat+'</strong><strong>'+fmt(totalCat)+'</strong></div><table width="100%" style="border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left;padding:5px 8px;background:#fafafa;border:1px solid #eee;font-size:9px;text-transform:uppercase">Descripción</th><th style="text-align:right;padding:5px 8px;background:#fafafa;border:1px solid #eee;font-size:9px;text-transform:uppercase">Total</th><th style="text-align:right;padding:5px 8px;background:#fafafa;border:1px solid #eee;font-size:9px;text-transform:uppercase">%</th></tr></thead><tbody>'+descs.map(([desc,total])=>'<tr><td style="padding:5px 8px;border:1px solid #eee">'+desc+'</td><td style="padding:5px 8px;border:1px solid #eee;text-align:right">'+fmt(total)+'</td><td style="padding:5px 8px;border:1px solid #eee;text-align:right">'+(totalCat>0?Math.round(total/totalCat*100):0)+'%</td></tr>').join('')+'</tbody></table></div>';
     }).join('')}
   </div>
-
   <div class="pdf-footer">mis.finanzas &nbsp;·&nbsp; ${mesNombre} &nbsp;·&nbsp; ${fechaGen}</div>
-
   <script>window.print();<\/script>
   </body></html>`);
   win.document.close();
 }
 
-// Firestore rules reminder timeout
 setTimeout(()=>{
-  if(document.getElementById('sync-status').classList.contains('sync-load')){
+  const statusEl = document.getElementById('sync-status');
+  if(statusEl && statusEl.classList.contains('sync-load')){
     setSync('err','✗ Revisar reglas DB');
   }
 },8000);
