@@ -1134,7 +1134,6 @@ function calcularUVA(){
 
   // Tables
   const casaEl = document.getElementById('uva-casa-list');
-  const casaEl = document.getElementById('uva-casa-list');
   casaEl.innerHTML = '<table class="data-table"><thead><tr><th>Mes</th><th>UVA</th><th class="amount">Cuota</th><th></th></tr></thead><tbody>' +
     casaRows.slice(0,24).map(r=>`<tr><td>${r.label}</td><td style="color:var(--text2);font-family:var(--font-mono)">${r.uva.toLocaleString('es-AR')}</td><td class="amount red">${fmt(r.cuota)}</td><td><span style="font-size:10px;padding:2px 6px;border-radius:4px;${r.esReal?'background:rgba(45,204,143,.15);color:var(--green)':'background:rgba(139,137,148,.1);color:var(--text3)'}">${r.esReal?'real':'proy.'}</span></td></tr>`).join('') +
     '</tbody></table>';
