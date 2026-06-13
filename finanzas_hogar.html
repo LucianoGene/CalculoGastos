@@ -838,8 +838,8 @@ updateMonthLabel();
 
 window.addEventListener('dbReady', async ()=>{
   dbReady=true;
+  await cargarCuotasReales();
   await loadAll();
-  if(typeof cargarCuotasReales === 'function') await cargarCuotasReales();
 });
 
 
@@ -1132,7 +1132,7 @@ async function guardarCuotaReal(){
     document.getElementById('uva-cuota-real').value='';
     document.getElementById('uva-valor-real').value='';
     toast('Cuota real guardada ✓');
-    if(typeof cargarCuotasReales === 'function') await cargarCuotasReales();
+    await cargarCuotasReales();
     calcularUVA();
   } catch(e){ toast('Error al guardar'); }
 }
@@ -1141,7 +1141,7 @@ async function eliminarCuotaReal(id){
   try{
     await window._deleteDoc(window._doc(window._db, 'uva_reales', id));
     toast('Eliminado');
-    if(typeof cargarCuotasReales === 'function') await cargarCuotasReales();
+    await cargarCuotasReales();
     calcularUVA();
   } catch(e){ toast('Error'); }
 }
