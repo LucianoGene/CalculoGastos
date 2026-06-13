@@ -338,37 +338,8 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
     </div>
   </div>
 
-  <!-- Carga de cuotas reales -->
-  <div class="form-card" style="margin-bottom:16px">
-    <div class="form-title"><span class="dot" style="background:var(--green)"></span>Registrar cuota real del mes</div>
-    <div class="form-grid">
-      <div class="form-group">
-        <label class="form-label">Crédito</label>
-        <select class="form-select" id="uva-credito">
-          <option value="casa">Casa</option>
-          <option value="cam">Amarok</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Mes y año</label>
-        <input class="form-input" id="uva-mes" type="month">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Cuota real $</label>
-        <input class="form-input" id="uva-cuota-real" type="number" placeholder="Ej: 528029">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Valor UVA real</label>
-        <input class="form-input" id="uva-valor-real" type="number" placeholder="Ej: 1969.47">
-      </div>
-      <div class="form-group">
-        <button class="btn btn-primary" onclick="guardarCuotaReal()">+ Guardar</button>
-      </div>
-    </div>
-  </div>
-
   <div class="charts-grid">
-    <div class="chart-card full"><div class="chart-title">Evolución de cuotas — real vs proyectado</div><div style="position:relative;height:300px"><canvas id="ch-uva"></canvas></div></div>
+    <div class="chart-card full"><div class="chart-title">Evolución de cuotas proyectadas</div><div style="position:relative;height:300px"><canvas id="ch-uva"></canvas></div></div>
   </div>
 
   <div class="resumen-grid">
@@ -380,12 +351,6 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
       <div class="section-header"><h3>Amarok — detalle mensual</h3></div>
       <div id="uva-cam-list"></div>
     </div>
-  </div>
-
-  <!-- Cuotas reales registradas -->
-  <div class="form-card" style="margin-top:0">
-    <div class="section-header"><h3>Cuotas reales registradas</h3></div>
-    <div id="uva-reales-list"></div>
   </div>
 </div>
 
@@ -833,12 +798,10 @@ function drawBar(id,labels,data){
 // Init
 document.getElementById('gd-fecha').value=today();
 loadAlertas();
-const hoyMes=new Date();document.getElementById('uva-mes').value=hoyMes.getFullYear()+'-'+String(hoyMes.getMonth()+1).padStart(2,'0');
 updateMonthLabel();
 
 window.addEventListener('dbReady', async ()=>{
   dbReady=true;
-  await cargarCuotasReales();
   await loadAll();
 });
 
@@ -1021,46 +984,28 @@ function calcularUVA(){
   const casaVals = [];
   const camVals = [];
   const totalVals = [];
-  const casaRealVals = [];
-  const camRealVals = [];
   const casaRows = [];
   const camRows = [];
 
-  // Determinar UVA base: ultimo real registrado o actual
-  const casaRealesOrdenados = Object.values(cuotasReales.casa).sort((a,b)=>b.mes.localeCompare(a.mes));
-  const camRealesOrdenados = Object.values(cuotasReales.cam).sort((a,b)=>b.mes.localeCompare(a.mes));
-  const ultimoCasaReal = casaRealesOrdenados[0];
-  const ultimoCamReal = camRealesOrdenados[0];
-
-  let uvaBase = UVA_ACTUAL;
-  if(ultimoCasaReal && ultimoCasaReal.uva) uvaBase = Math.max(uvaBase, ultimoCasaReal.uva);
-
-  let uva = uvaBase;
+  let uva = UVA_ACTUAL;
   const baseDate = new Date(2026, 6, 1); // julio 2026
 
   for(let i = 0; i < Math.max(MESES_REST_CASA, MESES_REST_CAM) + 2; i++){
     uva = uva * (1 + inf);
     const d = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, 1);
-    const mesKey = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
     const label = MESES_NOMBRES_CORTOS[d.getMonth()] + " " + String(d.getFullYear()).slice(2);
     labels.push(label);
 
-    // Usar real si existe, sino proyectado
-    const realCasa = cuotasReales.casa[mesKey];
-    const realCam = cuotasReales.cam[mesKey];
-
-    const cuotaCasa = realCasa ? realCasa.cuota : Math.round(UVAS_CASA * uva);
-    const cuotaCam = i < MESES_REST_CAM ? (realCam ? realCam.cuota : Math.round(UVAS_CAM * uva)) : 0;
+    const cuotaCasa = Math.round(UVAS_CASA * uva);
+    const cuotaCam = i < MESES_REST_CAM ? Math.round(UVAS_CAM * uva) : 0;
     const total = cuotaCasa + cuotaCam;
 
-    casaVals.push(realCasa ? null : cuotaCasa);
-    camVals.push(realCam ? null : (i < MESES_REST_CAM ? cuotaCam : null));
-    casaRealVals.push(realCasa ? cuotaCasa : null);
-    camRealVals.push(realCam ? cuotaCam : null);
+    casaVals.push(cuotaCasa);
+    camVals.push(cuotaCam);
     totalVals.push(total);
 
-    casaRows.push({label, cuota: cuotaCasa, uva: realCasa?.uva ? realCasa.uva : Math.round(uva), esReal: !!realCasa});
-    if(i < MESES_REST_CAM) camRows.push({label, cuota: cuotaCam, uva: realCam?.uva ? realCam.uva : Math.round(uva), esReal: !!realCam});
+    casaRows.push({label, cuota: cuotaCasa, uva: Math.round(uva)});
+    if(i < MESES_REST_CAM) camRows.push({label, cuota: cuotaCam, uva: Math.round(uva)});
   }
 
   // KPIs
@@ -1083,10 +1028,8 @@ function calcularUVA(){
     data: {
       labels,
       datasets: [
-        {label:'Casa (proy.)', data:casaVals, borderColor:'rgba(55,138,221,0.5)', borderDash:[4,3], tension:.3, pointRadius:2, fill:false},
-        {label:'Casa (real)', data:casaRealVals, borderColor:'#378ADD', backgroundColor:'rgba(55,138,221,0.07)', tension:.3, pointRadius:4, fill:true},
-        {label:'Amarok (proy.)', data:camVals, borderColor:'rgba(239,159,39,0.5)', borderDash:[4,3], tension:.3, pointRadius:2, fill:false},
-        {label:'Amarok (real)', data:camRealVals, borderColor:'#EF9F27', backgroundColor:'rgba(239,159,39,0.07)', tension:.3, pointRadius:4, fill:true},
+        {label:'Casa', data:casaVals, borderColor:'#378ADD', backgroundColor:'rgba(55,138,221,0.07)', tension:.3, fill:true, pointRadius:2},
+        {label:'Amarok', data:camVals, borderColor:'#EF9F27', backgroundColor:'rgba(239,159,39,0.07)', tension:.3, fill:true, pointRadius:2},
         {label:'Total', data:totalVals, borderColor:'#E24B4A', borderDash:[5,3], tension:.3, pointRadius:2, fill:false}
       ]
     },
@@ -1102,90 +1045,14 @@ function calcularUVA(){
 
   // Tables
   const casaEl = document.getElementById('uva-casa-list');
-  const casaEl = document.getElementById('uva-casa-list');
-  casaEl.innerHTML = '<table class="data-table"><thead><tr><th>Mes</th><th>UVA</th><th class="amount">Cuota</th><th></th></tr></thead><tbody>' +
-    casaRows.slice(0,24).map(r=>`<tr><td>${r.label}</td><td style="color:var(--text2);font-family:var(--font-mono)">${r.uva.toLocaleString('es-AR')}</td><td class="amount red">${fmt(r.cuota)}</td><td><span style="font-size:10px;padding:2px 6px;border-radius:4px;${r.esReal?'background:rgba(45,204,143,.15);color:var(--green)':'background:rgba(139,137,148,.1);color:var(--text3)'}">${r.esReal?'real':'proy.'}</span></td></tr>`).join('') +
+  casaEl.innerHTML = '<table class="data-table"><thead><tr><th>Mes</th><th>UVA est.</th><th class="amount">Cuota</th></tr></thead><tbody>' +
+    casaRows.slice(0,24).map(r=>`<tr><td>${r.label}</td><td style="color:var(--text2);font-family:var(--font-mono)">${r.uva.toLocaleString('es-AR')}</td><td class="amount red">${fmt(r.cuota)}</td></tr>`).join('') +
     '</tbody></table>';
 
   const camEl = document.getElementById('uva-cam-list');
-  camEl.innerHTML = '<table class="data-table"><thead><tr><th>Mes</th><th>UVA</th><th class="amount">Cuota</th><th></th></tr></thead><tbody>' +
-    camRows.map(r=>`<tr><td>${r.label}</td><td style="color:var(--text2);font-family:var(--font-mono)">${r.uva.toLocaleString('es-AR')}</td><td class="amount red">${fmt(r.cuota)}</td><td><span style="font-size:10px;padding:2px 6px;border-radius:4px;${r.esReal?'background:rgba(45,204,143,.15);color:var(--green)':'background:rgba(139,137,148,.1);color:var(--text3)'}">${r.esReal?'real':'proy.'}</span></td></tr>`).join('') +
-    '<tr><td colspan="3" style="color:var(--green);font-size:12px">✓ Termina Ene 2028</td><td class="amount green">$0</td></tr>' +
-    '</tbody></table>';
-}
-
-
-// ===== CUOTAS REALES UVA =====
-async function guardarCuotaReal(){
-  const credito = document.getElementById('uva-credito').value;
-  const mes = document.getElementById('uva-mes').value; // YYYY-MM
-  const cuota = parseFloat(document.getElementById('uva-cuota-real').value);
-  const uva = parseFloat(document.getElementById('uva-valor-real').value);
-
-  if(!mes || !cuota || cuota<=0){toast('Completá mes y cuota'); return;}
-
-  const id = 'uva_'+credito+'_'+mes.replace('-','_');
-  try{
-    await window._setDoc(window._doc(window._db, 'uva_reales', id), {
-      id, credito, mes, cuota, uva: uva||null
-    });
-    document.getElementById('uva-cuota-real').value='';
-    document.getElementById('uva-valor-real').value='';
-    toast('Cuota real guardada ✓');
-    await cargarCuotasReales();
-    calcularUVA();
-  } catch(e){ toast('Error al guardar'); }
-}
-
-async function eliminarCuotaReal(id){
-  try{
-    await window._deleteDoc(window._doc(window._db, 'uva_reales', id));
-    toast('Eliminado');
-    await cargarCuotasReales();
-    calcularUVA();
-  } catch(e){ toast('Error'); }
-}
-
-let cuotasReales = {casa:{}, cam:{}};
-
-async function cargarCuotasReales(){
-  if(!dbReady) return;
-  try{
-    const snap = await window._getDocs(window._col(window._db, 'uva_reales'));
-    cuotasReales = {casa:{}, cam:{}};
-    snap.docs.forEach(d=>{
-      const data = d.data();
-      cuotasReales[data.credito][data.mes] = data;
-    });
-    renderCuotasReales();
-  } catch(e){ console.error(e); }
-}
-
-function renderCuotasReales(){
-  const el = document.getElementById('uva-reales-list');
-  if(!el) return;
-  const allReales = [
-    ...Object.values(cuotasReales.casa).map(x=>({...x, nombre:'Casa'})),
-    ...Object.values(cuotasReales.cam).map(x=>({...x, nombre:'Amarok'}))
-  ].sort((a,b)=>b.mes.localeCompare(a.mes));
-
-  if(!allReales.length){
-    el.innerHTML='<div class="empty" style="padding:16px">Sin cuotas reales registradas todavía</div>';
-    return;
-  }
-
-  el.innerHTML = '<table class="data-table"><thead><tr><th>Crédito</th><th>Mes</th><th>UVA real</th><th class="amount">Cuota real</th><th></th></tr></thead><tbody>' +
-    allReales.map(x=>{
-      const [y,m] = x.mes.split('-');
-      const mesNombre = MESES[parseInt(m)-1]+' '+y;
-      return `<tr>
-        <td style="color:var(--text2)">${x.nombre}</td>
-        <td>${mesNombre}</td>
-        <td style="font-family:var(--font-mono);color:var(--text2)">${x.uva ? x.uva.toLocaleString('es-AR') : '—'}</td>
-        <td class="amount green">${fmt(x.cuota)}</td>
-        <td><button class="btn btn-danger" onclick="eliminarCuotaReal('${x.id}')">✕</button></td>
-      </tr>`;
-    }).join('') +
+  camEl.innerHTML = '<table class="data-table"><thead><tr><th>Mes</th><th>UVA est.</th><th class="amount">Cuota</th></tr></thead><tbody>' +
+    camRows.map(r=>`<tr><td>${r.label}</td><td style="color:var(--text2);font-family:var(--font-mono)">${r.uva.toLocaleString('es-AR')}</td><td class="amount red">${fmt(r.cuota)}</td></tr>`).join('') +
+    '<tr><td colspan="2" style="color:var(--green);font-size:12px">✓ Termina Ene 2028</td><td class="amount green">$0</td></tr>' +
     '</tbody></table>';
 }
 
