@@ -1041,32 +1041,58 @@ function calcularUVA(){
   let uvaBase = UVA_ACTUAL;
   if(ultimoCasaReal && ultimoCasaReal.uva) uvaBase = Math.max(uvaBase, ultimoCasaReal.uva);
 
-  let uva = uvaBase;
-  const baseDate = new Date(2026, 6, 1); // julio 2026
+  // Determinar mes de inicio: el más antiguo real o julio 2026
+  const todosReales = [
+    ...Object.values(cuotasReales.casa),
+    ...Object.values(cuotasReales.cam)
+  ];
+  let mesInicio = '2026-07';
+  if(todosReales.length){
+    const masAntiguo = todosReales.map(x=>x.mes).sort()[0];
+    if(masAntiguo < mesInicio) mesInicio = masAntiguo;
+  }
+  const [inicioY, inicioM] = mesInicio.split('-').map(Number);
+  const baseDate = new Date(inicioY, inicioM - 1, 1);
 
-  for(let i = 0; i < Math.max(MESES_REST_CASA, MESES_REST_CAM) + 2; i++){
-    uva = uva * (1 + inf);
+  // Calcular UVA base desde el inicio real si hay datos
+  // Usar UVA del mes de inicio si está disponible
+  const mesInicioKey = mesInicio;
+  const realInicioUVA = cuotasReales.casa[mesInicioKey]?.uva || cuotasReales.cam[mesInicioKey]?.uva;
+  let uva = realInicioUVA ? realInicioUVA : uvaBase;
+
+  const totalMeses = Math.max(MESES_REST_CASA, MESES_REST_CAM) + 24;
+
+  for(let i = 0; i < totalMeses; i++){
     const d = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, 1);
     const mesKey = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
     const label = MESES_NOMBRES_CORTOS[d.getMonth()] + " " + String(d.getFullYear()).slice(2);
-    labels.push(label);
 
-    // Usar real si existe, sino proyectado
+    // Usar real si existe
     const realCasa = cuotasReales.casa[mesKey];
     const realCam = cuotasReales.cam[mesKey];
 
+    // Actualizar UVA con dato real si existe
+    if(realCasa?.uva) uva = realCasa.uva;
+    else if(realCam?.uva) uva = realCam.uva;
+    else uva = uva * (1 + inf);
+
+    // Calcular meses restantes camioneta desde julio 2026
+    const mesesDesdeJul26 = (d.getFullYear() - 2026) * 12 + (d.getMonth() - 6);
+    const camActiva = mesesDesdeJul26 < MESES_REST_CAM;
+
     const cuotaCasa = realCasa ? realCasa.cuota : Math.round(UVAS_CASA * uva);
-    const cuotaCam = i < MESES_REST_CAM ? (realCam ? realCam.cuota : Math.round(UVAS_CAM * uva)) : 0;
+    const cuotaCam = camActiva ? (realCam ? realCam.cuota : Math.round(UVAS_CAM * uva)) : 0;
     const total = cuotaCasa + cuotaCam;
 
+    labels.push(label);
     casaVals.push(realCasa ? null : cuotaCasa);
-    camVals.push(realCam ? null : (i < MESES_REST_CAM ? cuotaCam : null));
+    camVals.push(realCam ? null : (camActiva ? cuotaCam : null));
     casaRealVals.push(realCasa ? cuotaCasa : null);
     camRealVals.push(realCam ? cuotaCam : null);
     totalVals.push(total);
 
     casaRows.push({label, cuota: cuotaCasa, uva: realCasa?.uva ? realCasa.uva : Math.round(uva), esReal: !!realCasa});
-    if(i < MESES_REST_CAM) camRows.push({label, cuota: cuotaCam, uva: realCam?.uva ? realCam.uva : Math.round(uva), esReal: !!realCam});
+    if(camActiva) camRows.push({label, cuota: cuotaCam, uva: realCam?.uva ? realCam.uva : Math.round(uva), esReal: !!realCam});
   }
 
   // KPIs
