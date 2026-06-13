@@ -165,6 +165,8 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
       <button class="nav-tab" onclick="showSection('egresos',this)">Egresos fijos</button>
       <button class="nav-tab" onclick="showSection('diarios',this)">Gastos diarios</button>
       <button class="nav-tab" onclick="showSection('reportes',this)">Reportes</button>
+      <button class="nav-tab" onclick="showSection('uva',this)">Créditos UVA</button>
+      <button class="nav-tab" onclick="showSection('alertas',this)">Alertas</button>
     </div>
   </div>
 </nav>
@@ -307,6 +309,75 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
       <h3>Desglose por descripción dentro de cada categoría</h3>
     </div>
     <div id="rep-desc-list"></div>
+  </div>
+</div>
+
+<!-- CREDITOS UVA -->
+<div id="sec-uva" class="section">
+  <div class="kpis" id="uva-kpis"></div>
+
+  <div class="form-card" style="margin-bottom:16px">
+    <div class="form-title"><span class="dot" style="background:var(--blue)"></span>Parámetros de proyección</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Inflación mensual estimada</label>
+        <select class="form-select" id="uva-inf">
+          <option value="0.025">Optimista — 2.5% / mes</option>
+          <option value="0.035" selected>Moderado — 3.5% / mes</option>
+          <option value="0.05">Pesimista — 5.0% / mes</option>
+          <option value="custom">Personalizado...</option>
+        </select>
+      </div>
+      <div class="form-group" id="uva-custom-group" style="display:none">
+        <label class="form-label">% mensual personalizado</label>
+        <input class="form-input" id="uva-custom-val" type="number" step="0.1" placeholder="Ej: 4.2">
+      </div>
+      <div class="form-group">
+        <button class="btn btn-primary" onclick="calcularUVA()">Proyectar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card full"><div class="chart-title">Evolución de cuotas proyectadas</div><div style="position:relative;height:300px"><canvas id="ch-uva"></canvas></div></div>
+  </div>
+
+  <div class="resumen-grid">
+    <div class="form-card">
+      <div class="section-header"><h3>Casa — detalle mensual</h3></div>
+      <div id="uva-casa-list"></div>
+    </div>
+    <div class="form-card">
+      <div class="section-header"><h3>Amarok — detalle mensual</h3></div>
+      <div id="uva-cam-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ALERTAS -->
+<div id="sec-alertas" class="section">
+  <div class="form-card">
+    <div class="form-title"><span class="dot" style="background:var(--amber)"></span>Configurar alertas de presupuesto</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Presupuesto diario máximo $</label>
+        <input class="form-input" id="alerta-diario" type="number" placeholder="Ej: 50000">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Presupuesto mensual máximo $</label>
+        <input class="form-input" id="alerta-mensual" type="number" placeholder="Ej: 1000000">
+      </div>
+      <div class="form-group">
+        <button class="btn btn-primary" onclick="guardarAlertas()">Guardar alertas</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="alertas-estado"></div>
+
+  <div class="form-card" style="margin-top:0">
+    <div class="section-header"><h3>Estado actual del mes</h3></div>
+    <div id="alertas-detalle"></div>
   </div>
 </div>
 </main>
@@ -454,6 +525,8 @@ function renderAll(){
   renderGastosDiarios();
   renderDashboard();
   renderReportes();
+  renderAlertas();
+  calcularUVA();
 }
 
 function renderIngresos(){
@@ -724,6 +797,7 @@ function drawBar(id,labels,data){
 
 // Init
 document.getElementById('gd-fecha').value=today();
+loadAlertas();
 updateMonthLabel();
 
 window.addEventListener('dbReady', async ()=>{
@@ -881,6 +955,197 @@ function exportarPDF(){
   <script>window.print();<\/script>
   </body></html>`);
   win.document.close();
+}
+
+
+// ===== CREDITOS UVA =====
+const UVA_ACTUAL = 1969.47;
+const UVAS_CASA = 268.0972;
+const UVAS_CAM = 255.9908;
+const MESES_REST_CASA = 67;
+const MESES_REST_CAM = 19; // hasta enero 2028
+
+const MESES_NOMBRES_CORTOS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+document.getElementById('uva-inf').addEventListener('change', function(){
+  document.getElementById('uva-custom-group').style.display = this.value === 'custom' ? 'block' : 'none';
+  calcularUVA();
+});
+
+function calcularUVA(){
+  let inf = parseFloat(document.getElementById('uva-inf').value);
+  if(isNaN(inf)){
+    const custom = parseFloat(document.getElementById('uva-custom-val').value);
+    if(!isNaN(custom)) inf = custom / 100;
+    else inf = 0.035;
+  }
+
+  const labels = [];
+  const casaVals = [];
+  const camVals = [];
+  const totalVals = [];
+  const casaRows = [];
+  const camRows = [];
+
+  let uva = UVA_ACTUAL;
+  const baseDate = new Date(2026, 6, 1); // julio 2026
+
+  for(let i = 0; i < Math.max(MESES_REST_CASA, MESES_REST_CAM) + 2; i++){
+    uva = uva * (1 + inf);
+    const d = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, 1);
+    const label = MESES_NOMBRES_CORTOS[d.getMonth()] + " " + String(d.getFullYear()).slice(2);
+    labels.push(label);
+
+    const cuotaCasa = Math.round(UVAS_CASA * uva);
+    const cuotaCam = i < MESES_REST_CAM ? Math.round(UVAS_CAM * uva) : 0;
+    const total = cuotaCasa + cuotaCam;
+
+    casaVals.push(cuotaCasa);
+    camVals.push(cuotaCam);
+    totalVals.push(total);
+
+    casaRows.push({label, cuota: cuotaCasa, uva: Math.round(uva)});
+    if(i < MESES_REST_CAM) camRows.push({label, cuota: cuotaCam, uva: Math.round(uva)});
+  }
+
+  // KPIs
+  const cuotaCasaHoy = Math.round(UVAS_CASA * UVA_ACTUAL);
+  const cuotaCamHoy = Math.round(UVAS_CAM * UVA_ACTUAL);
+  const alivioEne28 = camVals[MESES_REST_CAM - 1] || 0;
+  document.getElementById('uva-kpis').innerHTML = `
+    <div class="kpi"><div class="kpi-label">Cuota casa hoy</div><div class="kpi-value red">${fmt(cuotaCasaHoy)}</div><div class="kpi-sub">67 meses restantes</div></div>
+    <div class="kpi"><div class="kpi-label">Cuota Amarok hoy</div><div class="kpi-value red">${fmt(cuotaCamHoy)}</div><div class="kpi-sub">Termina Ene 2028</div></div>
+    <div class="kpi"><div class="kpi-label">Total créditos hoy</div><div class="kpi-value red">${fmt(cuotaCasaHoy+cuotaCamHoy)}</div></div>
+    <div class="kpi"><div class="kpi-label">Alivio en Feb 2028</div><div class="kpi-value green">−${fmt(alivioEne28)}/mes</div><div class="kpi-sub">Al terminar Amarok</div></div>
+    <div class="kpi"><div class="kpi-label">Inflación aplicada</div><div class="kpi-value amber">${(inf*100).toFixed(1)}%/mes</div></div>
+    <div class="kpi"><div class="kpi-label">UVA proyectada (1 año)</div><div class="kpi-value blue">${fmt(Math.round(UVA_ACTUAL * Math.pow(1+inf, 12)))}</div></div>
+  `;
+
+  // Chart
+  if(charts['ch-uva']) charts['ch-uva'].destroy();
+  charts['ch-uva'] = new Chart(document.getElementById('ch-uva'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {label:'Casa', data:casaVals, borderColor:'#378ADD', backgroundColor:'rgba(55,138,221,0.07)', tension:.3, fill:true, pointRadius:2},
+        {label:'Amarok', data:camVals, borderColor:'#EF9F27', backgroundColor:'rgba(239,159,39,0.07)', tension:.3, fill:true, pointRadius:2},
+        {label:'Total', data:totalVals, borderColor:'#E24B4A', borderDash:[5,3], tension:.3, pointRadius:2, fill:false}
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#8b8994',font:{size:11},boxWidth:10}}},
+      scales:{
+        x:{ticks:{color:'#8b8994',font:{size:10},maxRotation:45}, grid:{color:'rgba(42,42,53,.5)'}},
+        y:{ticks:{color:'#8b8994',font:{size:11},callback:v=>'$'+Math.round(v/1000)+'K'}, grid:{color:'rgba(42,42,53,.5)'}}
+      }
+    }
+  });
+
+  // Tables
+  const casaEl = document.getElementById('uva-casa-list');
+  casaEl.innerHTML = '<table class="data-table"><thead><tr><th>Mes</th><th>UVA est.</th><th class="amount">Cuota</th></tr></thead><tbody>' +
+    casaRows.slice(0,24).map(r=>`<tr><td>${r.label}</td><td style="color:var(--text2);font-family:var(--font-mono)">${r.uva.toLocaleString('es-AR')}</td><td class="amount red">${fmt(r.cuota)}</td></tr>`).join('') +
+    '</tbody></table>';
+
+  const camEl = document.getElementById('uva-cam-list');
+  camEl.innerHTML = '<table class="data-table"><thead><tr><th>Mes</th><th>UVA est.</th><th class="amount">Cuota</th></tr></thead><tbody>' +
+    camRows.map(r=>`<tr><td>${r.label}</td><td style="color:var(--text2);font-family:var(--font-mono)">${r.uva.toLocaleString('es-AR')}</td><td class="amount red">${fmt(r.cuota)}</td></tr>`).join('') +
+    '<tr><td colspan="2" style="color:var(--green);font-size:12px">✓ Termina Ene 2028</td><td class="amount green">$0</td></tr>' +
+    '</tbody></table>';
+}
+
+// ===== ALERTAS =====
+function loadAlertas(){
+  const cfg = JSON.parse(localStorage.getItem('mf_alertas')||'{}');
+  if(cfg.diario) document.getElementById('alerta-diario').value = cfg.diario;
+  if(cfg.mensual) document.getElementById('alerta-mensual').value = cfg.mensual;
+  return cfg;
+}
+
+function guardarAlertas(){
+  const diario = parseFloat(document.getElementById('alerta-diario').value)||0;
+  const mensual = parseFloat(document.getElementById('alerta-mensual').value)||0;
+  localStorage.setItem('mf_alertas', JSON.stringify({diario, mensual}));
+  toast('Alertas guardadas ✓');
+  renderAlertas();
+}
+
+function renderAlertas(){
+  const cfg = loadAlertas();
+  const gd = cache.gd;
+
+  const totalGd = gd.reduce((s,x)=>s+x.monto, 0);
+
+  // Gasto de hoy
+  const hoyStr = new Date().toISOString().split('T')[0];
+  const gastoHoy = gd.filter(x=>x.fecha===hoyStr).reduce((s,x)=>s+x.monto, 0);
+
+  // Promedio diario
+  const hoy = new Date();
+  const diasTrans = Math.max(hoy.getDate(), 1);
+  const promDiario = totalGd / diasTrans;
+
+  const estadoEl = document.getElementById('alertas-estado');
+  const detalleEl = document.getElementById('alertas-detalle');
+
+  // Alertas activas
+  let alertas = [];
+
+  if(cfg.diario > 0){
+    const pctDia = Math.round(gastoHoy / cfg.diario * 100);
+    const pctProm = Math.round(promDiario / cfg.diario * 100);
+    const colorDia = gastoHoy > cfg.diario ? 'var(--red)' : gastoHoy > cfg.diario * 0.8 ? 'var(--amber)' : 'var(--green)';
+    const colorProm = promDiario > cfg.diario ? 'var(--red)' : promDiario > cfg.diario * 0.8 ? 'var(--amber)' : 'var(--green)';
+
+    if(gastoHoy > cfg.diario){
+      alertas.push({tipo:'danger', msg:`⚠ Superaste el presupuesto diario hoy: gastaste ${fmt(gastoHoy)} de ${fmt(cfg.diario)} (${pctDia}%)`});
+    } else if(gastoHoy > cfg.diario * 0.8){
+      alertas.push({tipo:'warn', msg:`⚡ Estás cerca del límite diario: ${fmt(gastoHoy)} de ${fmt(cfg.diario)} (${pctDia}%)`});
+    }
+
+    if(promDiario > cfg.diario){
+      alertas.push({tipo:'danger', msg:`⚠ Tu promedio diario (${fmt(promDiario)}) supera el límite configurado (${fmt(cfg.diario)})`});
+    }
+  }
+
+  if(cfg.mensual > 0){
+    const pctMen = Math.round(totalGd / cfg.mensual * 100);
+    if(totalGd > cfg.mensual){
+      alertas.push({tipo:'danger', msg:`⚠ Superaste el presupuesto mensual: ${fmt(totalGd)} de ${fmt(cfg.mensual)} (${pctMen}%)`});
+    } else if(totalGd > cfg.mensual * 0.8){
+      alertas.push({tipo:'warn', msg:`⚡ Llegaste al 80% del presupuesto mensual: ${fmt(totalGd)} de ${fmt(cfg.mensual)} (${pctMen}%)`});
+    } else {
+      alertas.push({tipo:'ok', msg:`✓ Presupuesto mensual en orden: ${fmt(totalGd)} de ${fmt(cfg.mensual)} (${pctMen}%)`});
+    }
+  }
+
+  if(!cfg.diario && !cfg.mensual){
+    estadoEl.innerHTML = '<div class="empty" style="padding:20px">Configurá tus alertas arriba para activar el seguimiento</div>';
+  } else if(!alertas.length){
+    estadoEl.innerHTML = '<div style="background:var(--green-bg);border:1px solid var(--green);border-radius:var(--radius);padding:12px 16px;font-size:13px;color:var(--green);margin-bottom:16px">✓ Todo en orden — ninguna alerta activa</div>';
+  } else {
+    estadoEl.innerHTML = alertas.map(a=>{
+      const bg = a.tipo==='danger'?'var(--red-bg)':a.tipo==='warn'?'var(--amber-bg)':'var(--green-bg)';
+      const border = a.tipo==='danger'?'var(--red)':a.tipo==='warn'?'var(--amber)':'var(--green)';
+      const color = a.tipo==='danger'?'var(--red)':a.tipo==='warn'?'var(--amber)':'var(--green)';
+      return `<div style="background:${bg};border:1px solid ${border};border-radius:var(--radius);padding:12px 16px;font-size:13px;color:${color};margin-bottom:10px">${a.msg}</div>`;
+    }).join('');
+  }
+
+  // Detalle
+  const diasDelMes = new Date(hoy.getFullYear(), hoy.getMonth()+1, 0).getDate();
+  const diasRest = diasDelMes - hoy.getDate() + 1;
+
+  detalleEl.innerHTML = `
+    <div class="daily-item"><span class="daily-desc">Gasto hoy (${hoyStr.split('-').reverse().slice(0,2).join('/')})</span><span class="daily-amount">${fmt(gastoHoy)}</span></div>
+    <div class="daily-item"><span class="daily-desc">Total gastado este mes</span><span class="daily-amount">${fmt(totalGd)}</span></div>
+    <div class="daily-item"><span class="daily-desc">Promedio diario</span><span class="daily-amount">${fmt(promDiario)}</span></div>
+    <div class="daily-item"><span class="daily-desc">Días restantes del mes</span><span class="daily-amount" style="color:var(--blue)">${diasRest}</span></div>
+    ${cfg.diario?`<div class="daily-item"><span class="daily-desc">Presupuesto diario configurado</span><span class="daily-amount" style="color:var(--amber)">${fmt(cfg.diario)}</span></div>`:''}
+    ${cfg.mensual?`<div class="daily-item"><span class="daily-desc">Presupuesto mensual configurado</span><span class="daily-amount" style="color:var(--amber)">${fmt(cfg.mensual)}</span></div>`:''}
+  `;
 }
 
 // Firestore rules reminder timeout
