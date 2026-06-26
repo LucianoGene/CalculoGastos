@@ -167,6 +167,7 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
       <button class="nav-tab" onclick="showSection('reportes',this)">Reportes</button>
       <button class="nav-tab" onclick="showSection('uva',this)">Créditos UVA</button>
       <button class="nav-tab" onclick="showSection('alertas',this)">Alertas</button>
+      <button class="nav-tab" onclick="showSection('tarjetas',this)">Tarjetas</button>
     </div>
   </div>
 </nav>
@@ -413,6 +414,83 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
   <div class="form-card" style="margin-top:0">
     <div class="section-header"><h3>Estado actual del mes</h3></div>
     <div id="alertas-detalle"></div>
+  </div>
+</div>
+
+<!-- TARJETAS -->
+<div id="sec-tarjetas" class="section">
+
+  <!-- Formulario carga consumo -->
+  <div class="form-card">
+    <div class="form-title"><span class="dot" style="background:var(--purple)"></span>Registrar consumo</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Tarjeta</label>
+        <select class="form-select" id="tc-tarjeta">
+          <option value="visa_galicia">Visa Galicia</option>
+          <option value="master_galicia">Master Galicia</option>
+          <option value="visa_bapro">Visa Bapro</option>
+          <option value="master_bapro">Master Bapro</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Persona</label>
+        <select class="form-select" id="tc-persona">
+          <option value="comun">En común</option>
+          <option value="luciano">Luciano</option>
+          <option value="yesi">Yesi</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descripción</label>
+        <input class="form-input" id="tc-desc" type="text" placeholder="Ej: Netflix">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Monto total $</label>
+        <input class="form-input" id="tc-monto" type="number" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Cuotas</label>
+        <input class="form-input" id="tc-cuotas" type="number" min="1" value="1" placeholder="1">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mes inicio</label>
+        <input class="form-input" id="tc-mes-inicio" type="month">
+      </div>
+      <div class="form-group">
+        <button class="btn btn-primary" id="btn-tc" onclick="addConsumo()">+ Agregar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs por tarjeta -->
+  <div style="display:flex;gap:4px;margin-bottom:1rem;flex-wrap:wrap" id="tc-tabs">
+    <button class="nav-tab active" onclick="showTarjeta('visa_galicia',this)">Visa Galicia</button>
+    <button class="nav-tab" onclick="showTarjeta('master_galicia',this)">Master Galicia</button>
+    <button class="nav-tab" onclick="showTarjeta('visa_bapro',this)">Visa Bapro</button>
+    <button class="nav-tab" onclick="showTarjeta('master_bapro',this)">Master Bapro</button>
+    <button class="nav-tab" onclick="showTarjeta('todas',this)">Resumen total</button>
+  </div>
+
+  <!-- KPIs tarjeta seleccionada -->
+  <div class="kpis" id="tc-kpis"></div>
+
+  <!-- Consumos activos -->
+  <div class="resumen-grid">
+    <div class="form-card">
+      <div class="section-header"><h3 id="tc-consumos-title">Consumos activos</h3></div>
+      <div id="tc-consumos-list"></div>
+    </div>
+    <div class="form-card">
+      <div class="section-header"><h3>Cuotas por mes (próximos 6)</h3></div>
+      <div id="tc-cuotas-list"></div>
+    </div>
+  </div>
+
+  <!-- Desglose por persona -->
+  <div class="form-card">
+    <div class="section-header"><h3>Desglose por persona</h3></div>
+    <div id="tc-persona-list"></div>
   </div>
 </div>
 </main>
@@ -840,6 +918,7 @@ async function onDbReady(){
   dbReady=true;
   await loadAll();
   if(typeof cargarCuotasReales === 'function') await cargarCuotasReales();
+  if(typeof cargarConsumos === 'function') await cargarConsumos();
 }
 // Si Firebase ya cargó antes de que llegáramos acá, ejecutar directo
 if(window._dbReady){
@@ -1310,6 +1389,213 @@ function renderAlertas(){
     ${cfg.diario?`<div class="daily-item"><span class="daily-desc">Presupuesto diario configurado</span><span class="daily-amount" style="color:var(--amber)">${fmt(cfg.diario)}</span></div>`:''}
     ${cfg.mensual?`<div class="daily-item"><span class="daily-desc">Presupuesto mensual configurado</span><span class="daily-amount" style="color:var(--amber)">${fmt(cfg.mensual)}</span></div>`:''}
   `;
+}
+
+
+// ===== TARJETAS DE CREDITO =====
+const TARJETAS = {
+  visa_galicia: 'Visa Galicia',
+  master_galicia: 'Master Galicia',
+  visa_bapro: 'Visa Bapro',
+  master_bapro: 'Master Bapro'
+};
+const PERSONAS = {comun:'En común', luciano:'Luciano', yesi:'Yesi'};
+const PERSONA_COLORS = {comun:'#e8504a', luciano:'#5b8dee', yesi:'#2dcc8f'};
+
+let consumosCache = [];
+let tarjetaActiva = 'visa_galicia';
+
+// Set default month to current
+document.getElementById('tc-mes-inicio').value = new Date().toISOString().slice(0,7);
+
+function showTarjeta(id, el){
+  tarjetaActiva = id;
+  document.querySelectorAll('#tc-tabs .nav-tab').forEach(t=>t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  renderTarjetas();
+}
+
+async function addConsumo(){
+  if(!dbReady){toast('⏳ Esperando conexión...'); return;}
+  const tarjeta = document.getElementById('tc-tarjeta').value;
+  const persona = document.getElementById('tc-persona').value;
+  const desc = document.getElementById('tc-desc').value.trim();
+  const monto = parseFloat(document.getElementById('tc-monto').value);
+  const cuotas = parseInt(document.getElementById('tc-cuotas').value)||1;
+  const mesInicio = document.getElementById('tc-mes-inicio').value;
+
+  if(!desc||!monto||monto<=0||!mesInicio){toast('Completá todos los campos'); return;}
+
+  const btn = document.getElementById('btn-tc');
+  btn.disabled=true; btn.textContent='Guardando...';
+
+  try{
+    const id = 'tc_'+Date.now()+'_'+Math.random().toString(36).slice(2,5);
+    const cuotaValor = Math.round(monto/cuotas);
+    await window._setDoc(window._doc(window._db,'consumos_tc',id),{
+      id, tarjeta, persona, desc, monto, cuotas, cuotaValor, mesInicio,
+      fechaCarga: new Date().toISOString().slice(0,10)
+    });
+    document.getElementById('tc-desc').value='';
+    document.getElementById('tc-monto').value='';
+    document.getElementById('tc-cuotas').value='1';
+    await cargarConsumos();
+    toast('Consumo registrado ✓');
+    setSync('ok','✓ Sincronizado');
+  } catch(e){ toast('Error al guardar'); }
+  btn.disabled=false; btn.textContent='+ Agregar';
+}
+
+async function eliminarConsumo(id){
+  try{
+    await window._deleteDoc(window._doc(window._db,'consumos_tc',id));
+    await cargarConsumos();
+    toast('Eliminado');
+  } catch(e){ toast('Error'); }
+}
+
+async function cargarConsumos(){
+  if(!dbReady) return;
+  try{
+    const snap = await window._getDocs(window._col(window._db,'consumos_tc'));
+    consumosCache = snap.docs.map(d=>d.data());
+    renderTarjetas();
+  } catch(e){ console.error(e); }
+}
+
+function getMesesCuota(consumo){
+  // Devuelve array de {mes, monto, cuotaNum} para cada cuota
+  const meses = [];
+  const [y,m] = consumo.mesInicio.split('-').map(Number);
+  for(let i=0; i<consumo.cuotas; i++){
+    const d = new Date(y, m-1+i, 1);
+    const mesKey = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    meses.push({mes:mesKey, monto:consumo.cuotaValor, cuotaNum:i+1});
+  }
+  return meses;
+}
+
+function renderTarjetas(){
+  const hoy = new Date();
+  const mesActual = hoy.getFullYear()+'-'+String(hoy.getMonth()+1).padStart(2,'0');
+
+  // Filtrar consumos según tarjeta activa
+  const filtrados = tarjetaActiva==='todas'
+    ? consumosCache
+    : consumosCache.filter(c=>c.tarjeta===tarjetaActiva);
+
+  // Solo consumos que tienen cuotas pendientes (desde hoy en adelante)
+  const activos = filtrados.filter(c=>{
+    const ultimoMes = getMesesCuota(c).slice(-1)[0]?.mes;
+    return ultimoMes >= mesActual;
+  });
+
+  // KPIs
+  let totalMesActual = 0;
+  let totalPendiente = 0;
+  let countActivos = 0;
+
+  consumosCache.forEach(c=>{
+    if(tarjetaActiva!=='todas' && c.tarjeta!==tarjetaActiva) return;
+    getMesesCuota(c).forEach(m=>{
+      if(m.mes===mesActual) totalMesActual+=m.monto;
+      if(m.mes>=mesActual) totalPendiente+=m.monto;
+    });
+    if(getMesesCuota(c).slice(-1)[0]?.mes>=mesActual) countActivos++;
+  });
+
+  document.getElementById('tc-kpis').innerHTML=`
+    <div class="kpi"><div class="kpi-label">Cuotas este mes</div><div class="kpi-value red">${fmt(totalMesActual)}</div></div>
+    <div class="kpi"><div class="kpi-label">Total pendiente</div><div class="kpi-value amber">${fmt(totalPendiente)}</div></div>
+    <div class="kpi"><div class="kpi-label">Consumos activos</div><div class="kpi-value blue">${countActivos}</div></div>
+    <div class="kpi"><div class="kpi-label">Tarjeta</div><div class="kpi-value" style="font-size:14px">${tarjetaActiva==='todas'?'Todas':TARJETAS[tarjetaActiva]}</div></div>
+  `;
+
+  // Lista de consumos activos
+  const consumosEl = document.getElementById('tc-consumos-list');
+  document.getElementById('tc-consumos-title').textContent =
+    tarjetaActiva==='todas'?'Consumos activos — todas las tarjetas':'Consumos activos — '+(TARJETAS[tarjetaActiva]||'');
+
+  if(!activos.length){
+    consumosEl.innerHTML='<div class="empty" style="padding:16px">Sin consumos activos</div>';
+  } else {
+    consumosEl.innerHTML='<table class="data-table"><thead><tr><th>Descripción</th><th>Persona</th>'+(tarjetaActiva==='todas'?'<th>Tarjeta</th>':'')+'<th>Cuota</th><th class="amount">Monto/cuota</th><th></th></tr></thead><tbody>'+
+      activos.map(c=>{
+        const meses = getMesesCuota(c);
+        const cuotaActual = meses.findIndex(m=>m.mes>=mesActual)+1;
+        const cuotasRest = meses.filter(m=>m.mes>=mesActual).length;
+        const color = PERSONA_COLORS[c.persona]||'var(--text2)';
+        return `<tr>
+          <td>${c.desc}</td>
+          <td><span style="font-size:11px;padding:2px 7px;border-radius:4px;background:${color}22;color:${color}">${PERSONAS[c.persona]||c.persona}</span></td>
+          ${tarjetaActiva==='todas'?`<td style="font-size:12px;color:var(--text2)">${TARJETAS[c.tarjeta]||c.tarjeta}</td>`:''}
+          <td style="font-size:12px;color:var(--text2)">${cuotaActual}/${c.cuotas}</td>
+          <td class="amount red">${fmt(c.cuotaValor)}</td>
+          <td><button class="btn btn-danger" onclick="eliminarConsumo('${c.id}')">✕</button></td>
+        </tr>`;
+      }).join('')+
+      '</tbody></table>';
+  }
+
+  // Cuotas próximos 6 meses
+  const cuotasEl = document.getElementById('tc-cuotas-list');
+  const mesesProximos = [];
+  for(let i=0;i<6;i++){
+    const d = new Date(hoy.getFullYear(), hoy.getMonth()+i, 1);
+    mesesProximos.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));
+  }
+
+  const cuotasPorMes = {};
+  mesesProximos.forEach(m=>cuotasPorMes[m]=0);
+  filtrados.forEach(c=>{
+    getMesesCuota(c).forEach(m=>{
+      if(cuotasPorMes[m.mes]!==undefined) cuotasPorMes[m.mes]+=m.monto;
+    });
+  });
+
+  const maxCuota = Math.max(...Object.values(cuotasPorMes),1);
+  cuotasEl.innerHTML = mesesProximos.map(m=>{
+    const [y,mo] = m.split('-');
+    const label = MESES[parseInt(mo)-1]+' '+y;
+    const val = cuotasPorMes[m]||0;
+    const pct = Math.round(val/maxCuota*100);
+    const esMesActual = m===mesActual;
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+        <span style="font-size:12px;color:${esMesActual?'var(--text)':'var(--text2)'};font-weight:${esMesActual?'500':'400'}">${label}${esMesActual?' ◀':''}</span>
+        <span style="font-family:var(--font-mono);font-size:12px;color:var(--red)">${fmt(val)}</span>
+      </div>
+      <div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${esMesActual?'var(--red)':'rgba(232,80,74,0.4)'};border-radius:3px"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Desglose por persona
+  const personaEl = document.getElementById('tc-persona-list');
+  const porPersona = {comun:0, luciano:0, yesi:0};
+  filtrados.forEach(c=>{
+    getMesesCuota(c).forEach(m=>{
+      if(m.mes===mesActual) porPersona[c.persona]=(porPersona[c.persona]||0)+m.monto;
+    });
+  });
+  const totalPersonas = Object.values(porPersona).reduce((s,v)=>s+v,0)||1;
+  personaEl.innerHTML = Object.entries(porPersona).map(([p,v])=>{
+    const pct = Math.round(v/totalPersonas*100);
+    const color = PERSONA_COLORS[p];
+    return `<div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:13px;color:var(--text);display:flex;align-items:center;gap:8px">
+          <span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block"></span>
+          ${PERSONAS[p]}
+        </span>
+        <span style="font-family:var(--font-mono);font-size:12px;color:var(--text2)">${fmt(v)} <span style="color:var(--text3)">(${pct}%)</span></span>
+      </div>
+      <div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${color};border-radius:3px"></div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // Firestore rules reminder timeout
