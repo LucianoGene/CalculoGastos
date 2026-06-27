@@ -1529,8 +1529,10 @@ function renderTarjetas(){
 
   const activos = filtrados.filter(c=>{
     if(c.recurrente) return true;
-    const ultimoMes = getMesesCuota(c).slice(-1)[0]?.mes;
-    return ultimoMes >= mesSig;
+    const mesesC = getMesesCuota(c);
+    const ultimoMes = mesesC.slice(-1)[0]?.mes;
+    // Show if has future cuotas OR was paid this month (1/1 or last cuota this month)
+    return ultimoMes >= mesSig || ultimoMes === mesActual;
   });
 
   // KPIs: cuotas del mes actual (ya pagadas), pendientes futuras
@@ -1571,9 +1573,12 @@ function renderTarjetas(){
         const meses = getMesesCuota(c);
         const cuotaActualNum = meses.findIndex(m=>m.mes===mesActual)+1;
         const cuotasRestantes = meses.filter(m=>m.mes>=mesSig).length;
+        const cuotasFuturas = meses.filter(m=>m.mes>mesActual).length;
         const estadoLabel = c.recurrente
           ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(45,204,143,.15);color:var(--green)">recurrente</span>`
-          : `<span style="font-size:12px;color:var(--text2)">${cuotaActualNum>0?cuotaActualNum:'-'}/${c.cuotas} · ${cuotasRestantes} rest.</span>`;
+          : cuotasFuturas === 0
+            ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(139,137,148,.15);color:var(--text3)">pagado</span>`
+            : `<span style="font-size:12px;color:var(--text2)">${cuotaActualNum>0?cuotaActualNum:'-'}/${c.cuotas} · ${cuotasFuturas} rest.</span>`;
         return `<tr>
           <td style="font-weight:500">${c.desc}</td>
           <td><span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${color}22;color:${color}">${PERSONAS[c.persona]||c.persona}</span></td>
@@ -1765,9 +1770,9 @@ function exportarPDFTarjetas(){
       const meses = getMesesCuota(c);
       const cuotaActNum = meses.findIndex(m=>m.mes===mesActual)+1;
       const restantes = c.recurrente ? '∞' : meses.filter(m=>m.mes>=mesSig).length;
-      const pendiente = c.recurrente ? c.cuotaValor*12 : meses.filter(m=>m.mes>=mesSig).reduce((s,m)=>s+m.monto,0);
+      const pendiente = c.recurrente ? null : meses.filter(m=>m.mes>=mesSig).reduce((s,m)=>s+m.monto,0);
       const estado = c.recurrente ? 'Recurrente' : `${cuotaActNum>0?cuotaActNum:'-'}/${c.cuotas} · ${restantes} rest.`;
-      return `<tr><td>${c.desc}</td><td>${PERSONAS[c.persona]}</td><td>${TARJETAS[c.tarjeta]}</td><td>${estado}</td><td class="right">${fmt(c.cuotaValor)}</td><td class="right">${fmt(pendiente)}</td></tr>`;
+      return `<tr><td>${c.desc}</td><td>${PERSONAS[c.persona]}</td><td>${TARJETAS[c.tarjeta]}</td><td>${estado}</td><td class="right">${fmt(c.cuotaValor)}</td><td class="right">${pendiente===null?'—':fmt(pendiente)}</td></tr>`;
     }).join('')}
     </tbody></table>
   </div>
