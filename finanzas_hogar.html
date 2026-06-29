@@ -1101,7 +1101,7 @@ function exportarPDF(){
   <div class="pdf-footer">mis.finanzas &nbsp;·&nbsp; ${mesNombre} &nbsp;·&nbsp; ${fechaGen}</div>
 
   <script>window.print();<\/script>
-  </body></html>`);`;
+  </body></html>`;
   const blob = new Blob([htmlContent], {type:'text/html'});
   const url = URL.createObjectURL(blob);
   const win = window.open(url, '_blank');
@@ -1875,7 +1875,7 @@ function exportarPDFTarjetas(){
 
   <div class="footer">mis.finanzas · Tarjetas · ${mesNombre} · ${fechaGen}</div>
   <script>window.print();<\/script>
-  </body></html>`);`;
+  </body></html>`;
   const blob = new Blob([htmlContent], {type:'text/html'});
   const url = URL.createObjectURL(blob);
   const win = window.open(url, '_blank');
