@@ -1692,16 +1692,16 @@ function renderTarjetas(){
   // Split En común 50/50 + add ajustes al total real (solo en vista Todas)
   const mitadComun = porPersonaRaw.comun / 2;
   const ajustesP = tarjetaActiva==='todas' ? getAjustes() : {};
-  const impP = (ajustesP.impuestos||0) / 2;
-  const tcP = (ajustesP.tcambio||0) / 2;
+  const impP = ajustesP.impuestos||0;
+  const tcP = ajustesP.tcambio||0;
 
   const totalLuciano = porPersonaRaw.luciano + mitadComun + impP + tcP;
-  const totalYesi = porPersonaRaw.yesi + mitadComun + impP + tcP;
+  const totalYesi = porPersonaRaw.yesi + mitadComun;
   const totalRealP = totalLuciano + totalYesi;
 
   const desglosePersonas = [
     {nombre:'Luciano', propio: porPersonaRaw.luciano, comun: mitadComun, ajuste: impP+tcP, total: totalLuciano, color:'#5b8dee'},
-    {nombre:'Yesi', propio: porPersonaRaw.yesi, comun: mitadComun, ajuste: impP+tcP, total: totalYesi, color:'#2dcc8f'},
+    {nombre:'Yesi', propio: porPersonaRaw.yesi, comun: mitadComun, ajuste: 0, total: totalYesi, color:'#2dcc8f'},
     {nombre:'En común (bruto)', propio: porPersonaRaw.comun, comun:0, ajuste:0, total: porPersonaRaw.comun, color:'#e8504a', sub:true}
   ];
 
@@ -1828,14 +1828,14 @@ function exportarPDFTarjetas(){
     <table><thead><tr><th>Persona</th><th class="right">Propio</th><th class="right">+ 50% Común</th><th class="right">+ Ajustes</th><th class="right">Total</th></tr></thead><tbody>
     ${(()=>{
       const ajustesPDF = getAjustes();
-      const impPDF = (ajustesPDF.impuestos||0)/2;
-      const tcPDF = (ajustesPDF.tcambio||0)/2;
+      const impPDF = ajustesPDF.impuestos||0;
+      const tcPDF = ajustesPDF.tcambio||0;
       const mitad = porPersonaPDF.comun/2;
       const totLuc = porPersonaPDF.luciano + mitad + impPDF + tcPDF;
-      const totYes = porPersonaPDF.yesi + mitad + impPDF + tcPDF;
+      const totYes = porPersonaPDF.yesi + mitad;
       return [
         ['Luciano', porPersonaPDF.luciano, mitad, impPDF+tcPDF, totLuc],
-        ['Yesi', porPersonaPDF.yesi, mitad, impPDF+tcPDF, totYes],
+        ['Yesi', porPersonaPDF.yesi, mitad, 0, totYes],
         ['En común (bruto)', porPersonaPDF.comun, 0, 0, porPersonaPDF.comun]
       ].map(([n,p,c,a,t])=>`<tr><td>${n}</td><td class="right">${fmt(p)}</td><td class="right">${c>0?fmt(c):'—'}</td><td class="right">${a>0?fmt(a):'—'}</td><td class="right" style="font-weight:700">${fmt(t)}</td></tr>`).join('');
     })()}
