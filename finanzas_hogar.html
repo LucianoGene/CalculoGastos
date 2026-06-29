@@ -471,6 +471,24 @@ main{padding:20px 24px;max-width:1100px;margin:0 auto}
     </div>
   </div>
 
+  <!-- Ajustes mensuales -->
+  <div class="form-card" style="margin-bottom:1rem">
+    <div class="form-title"><span class="dot" style="background:var(--amber)"></span>Ajustes del mes</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Impuestos y sellos $</label>
+        <input class="form-input" id="tc-impuestos" type="number" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Diferencia tipo de cambio $</label>
+        <input class="form-input" id="tc-tcambio" type="number" placeholder="0">
+      </div>
+      <div class="form-group">
+        <button class="btn btn-primary" onclick="guardarAjustes()">Guardar ajustes</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Tabs por tarjeta -->
   <div style="display:flex;gap:4px;margin-bottom:1rem;flex-wrap:wrap" id="tc-tabs">
     <button class="nav-tab active" onclick="showTarjeta('visa_galicia',this)">Visa Galicia</button>
@@ -971,8 +989,7 @@ function exportarPDF(){
   const mesNombre = MESES[currentMonth] + ' ' + currentYear;
   const fechaGen = hoy.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
 
-  const win = window.open('','_blank');
-  win.document.write(`<!DOCTYPE html><html lang="es"><head>
+  const htmlContent = `<!DOCTYPE html><html lang="es"><head>
   <meta charset="UTF-8">
   <title>Resumen ${mesNombre}</title>
   <style>
@@ -1084,8 +1101,11 @@ function exportarPDF(){
   <div class="pdf-footer">mis.finanzas &nbsp;·&nbsp; ${mesNombre} &nbsp;·&nbsp; ${fechaGen}</div>
 
   <script>window.print();<\/script>
-  </body></html>`);
-  win.document.close();
+  </body></html>`);`;
+  const blob = new Blob([htmlContent], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank');
+  setTimeout(()=>URL.revokeObjectURL(url), 10000);
 }
 
 
@@ -1401,6 +1421,32 @@ function renderAlertas(){
 }
 
 
+
+// ===== AJUSTES TARJETAS =====
+function ajustesKey(){
+  const h = new Date();
+  return 'tc_ajustes_'+h.getFullYear()+'_'+String(h.getMonth()+1).padStart(2,'0');
+}
+
+function cargarAjustes(){
+  const datos = JSON.parse(localStorage.getItem(ajustesKey())||'{}');
+  document.getElementById('tc-impuestos').value = datos.impuestos||'';
+  document.getElementById('tc-tcambio').value = datos.tcambio||'';
+  return datos;
+}
+
+function guardarAjustes(){
+  const impuestos = parseFloat(document.getElementById('tc-impuestos').value)||0;
+  const tcambio = parseFloat(document.getElementById('tc-tcambio').value)||0;
+  localStorage.setItem(ajustesKey(), JSON.stringify({impuestos, tcambio}));
+  toast('Ajustes guardados ✓');
+  renderTarjetas();
+}
+
+function getAjustes(){
+  return JSON.parse(localStorage.getItem(ajustesKey())||'{}');
+}
+
 // ===== TARJETAS DE CREDITO =====
 const TARJETAS = {
   visa_galicia: 'Visa Galicia',
@@ -1416,6 +1462,7 @@ let tarjetaActiva = 'visa_galicia';
 
 // Set default month
 const _hoyTC = new Date();
+cargarAjustes();
 document.getElementById('tc-fecha-compra').value = _hoyTC.getFullYear()+'-'+String(_hoyTC.getMonth()+1).padStart(2,'0');
 
 function showTarjeta(id, el){
@@ -1552,8 +1599,17 @@ function renderTarjetas(){
     if(ult >= mesSig) countActivos++;
   });
 
+  const ajustes = getAjustes();
+  const impuestos = ajustes.impuestos||0;
+  const tcambio = ajustes.tcambio||0;
+  const totalConAjustes = tarjetaActiva==='todas' ? totalMesActual + impuestos + tcambio : totalMesActual;
+
   document.getElementById('tc-kpis').innerHTML=`
-    <div class="kpi"><div class="kpi-label">Pagado este mes</div><div class="kpi-value red">${fmt(totalMesActual)}</div></div>
+    <div class="kpi"><div class="kpi-label">Consumos del mes</div><div class="kpi-value red">${fmt(totalMesActual)}</div></div>
+    ${tarjetaActiva==='todas'?`
+    <div class="kpi"><div class="kpi-label">Impuestos y sellos</div><div class="kpi-value amber">${fmt(impuestos)}</div></div>
+    <div class="kpi"><div class="kpi-label">Dif. tipo de cambio</div><div class="kpi-value amber">${fmt(tcambio)}</div></div>
+    <div class="kpi"><div class="kpi-label">Total real del mes</div><div class="kpi-value red">${fmt(totalConAjustes)}</div></div>`:''}
     <div class="kpi"><div class="kpi-label">Pendiente futuro</div><div class="kpi-value amber">${fmt(totalPendiente)}</div></div>
     <div class="kpi"><div class="kpi-label">Consumos activos</div><div class="kpi-value blue">${countActivos}</div></div>
     <div class="kpi"><div class="kpi-label">Tarjeta</div><div class="kpi-value" style="font-size:14px">${tarjetaActiva==='todas'?'Todas':TARJETAS[tarjetaActiva]||tarjetaActiva}</div></div>
@@ -1625,27 +1681,46 @@ function renderTarjetas(){
     </div>`;
   }).join('');
 
-  // Desglose por persona (mes actual)
+  // Desglose por persona (mes actual) - En común dividido 50/50
   const personaEl = document.getElementById('tc-persona-list');
-  const porPersona = {comun:0,luciano:0,yesi:0};
+  const porPersonaRaw = {comun:0,luciano:0,yesi:0};
   filtrados.forEach(c=>{
-    if(c.recurrente){ porPersona[c.persona]=(porPersona[c.persona]||0)+c.cuotaValor; return; }
-    getMesesCuota(c).forEach(m=>{ if(m.mes===mesActual) porPersona[c.persona]=(porPersona[c.persona]||0)+m.monto; });
+    if(c.recurrente){ porPersonaRaw[c.persona]=(porPersonaRaw[c.persona]||0)+c.cuotaValor; return; }
+    getMesesCuota(c).forEach(m=>{ if(m.mes===mesActual) porPersonaRaw[c.persona]=(porPersonaRaw[c.persona]||0)+m.monto; });
   });
-  const totalP = Object.values(porPersona).reduce((s,v)=>s+v,0)||1;
-  personaEl.innerHTML = Object.entries(porPersona).map(([p,v])=>{
-    const pct = Math.round(v/totalP*100);
-    const color = PERSONA_COLORS[p];
-    return `<div style="margin-bottom:12px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-        <span style="font-size:13px;color:var(--text);display:flex;align-items:center;gap:8px">
-          <span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block"></span>${PERSONAS[p]}
+
+  // Split En común 50/50 + add ajustes al total real (solo en vista Todas)
+  const mitadComun = porPersonaRaw.comun / 2;
+  const ajustesP = tarjetaActiva==='todas' ? getAjustes() : {};
+  const impP = (ajustesP.impuestos||0) / 2;
+  const tcP = (ajustesP.tcambio||0) / 2;
+
+  const totalLuciano = porPersonaRaw.luciano + mitadComun + impP + tcP;
+  const totalYesi = porPersonaRaw.yesi + mitadComun + impP + tcP;
+  const totalRealP = totalLuciano + totalYesi;
+
+  const desglosePersonas = [
+    {nombre:'Luciano', propio: porPersonaRaw.luciano, comun: mitadComun, ajuste: impP+tcP, total: totalLuciano, color:'#5b8dee'},
+    {nombre:'Yesi', propio: porPersonaRaw.yesi, comun: mitadComun, ajuste: impP+tcP, total: totalYesi, color:'#2dcc8f'},
+    {nombre:'En común (bruto)', propio: porPersonaRaw.comun, comun:0, ajuste:0, total: porPersonaRaw.comun, color:'#e8504a', sub:true}
+  ];
+
+  const maxP = Math.max(totalLuciano, totalYesi, 1);
+  personaEl.innerHTML = desglosePersonas.map(p=>{
+    const pct = Math.round(p.total/totalRealP*100)||0;
+    const barW = Math.round(p.total/maxP*100);
+    return `<div style="margin-bottom:${p.sub?'4':'12'}px${p.sub?';opacity:.6':''}">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;align-items:baseline">
+        <span style="font-size:${p.sub?'12':'13'}px;color:var(--text);display:flex;align-items:center;gap:8px">
+          <span style="width:8px;height:8px;border-radius:50%;background:${p.color};display:inline-block"></span>
+          ${p.nombre}
+          ${!p.sub && p.comun>0?`<span style="font-size:10px;color:var(--text3)">(propio ${fmt(p.propio)} + común ${fmt(p.comun)}${p.ajuste>0?' + ajustes '+fmt(p.ajuste):''})</span>`:''}
         </span>
-        <span style="font-family:var(--font-mono);font-size:12px;color:var(--text2)">${fmt(v)} <span style="color:var(--text3)">(${pct}%)</span></span>
+        <span style="font-family:var(--font-mono);font-size:12px;color:var(--text2)">${fmt(p.total)} ${!p.sub?`<span style="color:var(--text3)">(${pct}%)</span>`:''}</span>
       </div>
-      <div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden">
-        <div style="height:100%;width:${pct}%;background:${color};border-radius:3px"></div>
-      </div>
+      ${!p.sub?`<div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${barW}%;background:${p.color};border-radius:3px"></div>
+      </div>`:''}
     </div>`;
   }).join('');
 }
@@ -1700,8 +1775,7 @@ function exportarPDFTarjetas(){
     return getMesesCuota(c).slice(-1)[0]?.mes >= mesSig;
   }).sort((a,b)=>a.tarjeta.localeCompare(b.tarjeta));
 
-  const win = window.open('','_blank');
-  win.document.write(`<!DOCTYPE html><html lang="es"><head>
+  const htmlContent = `<!DOCTYPE html><html lang="es"><head>
   <meta charset="UTF-8"><title>Tarjetas ${mesNombre}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
@@ -1750,9 +1824,31 @@ function exportarPDFTarjetas(){
   </div>
 
   <div class="section">
-    <div class="section-title">Por persona — mes actual</div>
-    <table><thead><tr><th>Persona</th><th class="right">Monto</th><th class="right">%</th></tr></thead><tbody>
-    ${Object.entries(porPersonaPDF).map(([p,v])=>`<tr><td>${PERSONAS[p]}</td><td class="right">${fmt(v)}</td><td class="right">${Math.round(v/totalMes*100)||0}%</td></tr>`).join('')}
+    <div class="section-title">Por persona — mes actual (En común dividido 50/50)</div>
+    <table><thead><tr><th>Persona</th><th class="right">Propio</th><th class="right">+ 50% Común</th><th class="right">+ Ajustes</th><th class="right">Total</th></tr></thead><tbody>
+    ${(()=>{
+      const ajustesPDF = getAjustes();
+      const impPDF = (ajustesPDF.impuestos||0)/2;
+      const tcPDF = (ajustesPDF.tcambio||0)/2;
+      const mitad = porPersonaPDF.comun/2;
+      const totLuc = porPersonaPDF.luciano + mitad + impPDF + tcPDF;
+      const totYes = porPersonaPDF.yesi + mitad + impPDF + tcPDF;
+      return [
+        ['Luciano', porPersonaPDF.luciano, mitad, impPDF+tcPDF, totLuc],
+        ['Yesi', porPersonaPDF.yesi, mitad, impPDF+tcPDF, totYes],
+        ['En común (bruto)', porPersonaPDF.comun, 0, 0, porPersonaPDF.comun]
+      ].map(([n,p,c,a,t])=>`<tr><td>${n}</td><td class="right">${fmt(p)}</td><td class="right">${c>0?fmt(c):'—'}</td><td class="right">${a>0?fmt(a):'—'}</td><td class="right" style="font-weight:700">${fmt(t)}</td></tr>`).join('');
+    })()}
+    <tr class="total-row"><td colspan="4">TOTAL</td><td class="right">${fmt(totalMes + (getAjustes().impuestos||0) + (getAjustes().tcambio||0))}</td></tr>
+    </tbody></table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Ajustes del mes</div>
+    <table><thead><tr><th>Concepto</th><th class="right">Monto</th></tr></thead><tbody>
+    <tr><td>Impuestos y sellos</td><td class="right">${fmt(getAjustes().impuestos||0)}</td></tr>
+    <tr><td>Diferencia tipo de cambio</td><td class="right">${fmt(getAjustes().tcambio||0)}</td></tr>
+    <tr class="total-row"><td>TOTAL AJUSTES</td><td class="right">${fmt((getAjustes().impuestos||0)+(getAjustes().tcambio||0))}</td></tr>
     </tbody></table>
   </div>
 
@@ -1779,8 +1875,11 @@ function exportarPDFTarjetas(){
 
   <div class="footer">mis.finanzas · Tarjetas · ${mesNombre} · ${fechaGen}</div>
   <script>window.print();<\/script>
-  </body></html>`);
-  win.document.close();
+  </body></html>`);`;
+  const blob = new Blob([htmlContent], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank');
+  setTimeout(()=>URL.revokeObjectURL(url), 10000);
 }
 
 // Firestore rules reminder timeout
